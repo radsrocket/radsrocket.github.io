@@ -3,14 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Nowify — Kiosk (Large)</title>
+  <title>Nowify — Kiosk</title>
   <style>
     :root{
       --fg:#f6f8fb;
-      --muted:#c7cfdb;
+      --muted:#9aa6b2;
       --accent:#1db954;
       --shadow: 0 40px 80px rgba(0,0,0,.6);
       --glow: 0 0 160px 60px rgba(0,0,0,.55) inset;
+      --gap: 5vw;
     }
     *{box-sizing:border-box}
     html,body{height:100%;margin:0;background:#07090c;color:var(--fg);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial,sans-serif;overflow:hidden}
@@ -22,43 +23,77 @@
       linear-gradient(180deg, rgba(0,0,0,.55), rgba(0,0,0,.7)); box-shadow:var(--glow)}
     .status{position:fixed; top:16px; left:16px; font-size:14px; color:#b1b8c8; opacity:.85; z-index:3}
 
-    /* Layout tuned for big screens (art-dominant) */
+    /* Full-screen blackout overlay for paused / nothing playing */
+    .blackout{position:fixed; inset:0; background:#000; display:none; z-index:5}
+
+    /* Centered network error overlay (no blackout) */
+    .neterr{
+      position:fixed; inset:0; display:none; z-index:5;
+      pointer-events:none; /* clicks pass through */
+      display:grid; place-items:center;
+    }
+    .neterr .bubble{
+      color:var(--muted);
+      font-size:clamp(18px, 3.2vmin, 28px);
+      background:rgba(0,0,0,0.35);
+      padding:1rem 1.25rem;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,0.12);
+      backdrop-filter: blur(6px);
+      text-align:center;
+    }
+
+    /* Layout tuned for big screens (art-dominant left) */
     .panel{
       position:relative; z-index:2;
       display:grid;
-      grid-template-columns: minmax(480px, 65vmin) minmax(520px, 1fr);
-      gap:5vw; align-items:center;
-      width:min(94vw, 1900px); padding:2.5vw;
+      grid-template-columns: minmax(520px, 66vmin) minmax(560px, 1fr);
+      gap:var(--gap); align-items:center;
+      width:min(94vw, 1920px); padding:calc(var(--gap) * 0.5);
     }
-    .left, .right{display:grid; align-content:center; gap:2.2vmin}
+    .left, .right{display:grid; align-content:center; gap:2.2vmin; min-width:0}
     .art{
       width:100%;
       aspect-ratio:1/1;
-      border-radius:28px; object-fit:cover; box-shadow:var(--shadow);
+      border-radius:0; /* square corners */
+      object-fit:cover; box-shadow:var(--shadow);
       border:1px solid rgba(255,255,255,.16); background:#0b0f14;
     }
     .title{
       font-weight:800; letter-spacing:.2px;
-      font-size:clamp(36px, 6.8vmin, 92px);
+      font-size:clamp(36px, 7.2vmin, 100px); /* base; will be adjusted by JS */
+      line-height:1.08;
       text-shadow:0 3px 12px rgba(0,0,0,.6);
-      max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+      max-width:100%;
+      overflow:visible;
+      word-break:break-word;
     }
     .artists{
-      color:var(--muted);
-      font-size:clamp(24px, 5.2vmin, 72px);
-      max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+      color:#c7cfdb;
+      font-size:clamp(24px, 5.5vmin, 80px);
+      line-height:1.1;
+      max-width:100%;
+      overflow:visible;
+      word-break:break-word;
     }
 
     .progress{width:100%; height:20px; border-radius:999px; border:1px solid rgba(255,255,255,.18); background:rgba(0,0,0,.35); overflow:hidden}
     .bar{height:100%; width:0%; background:linear-gradient(90deg, rgba(255,255,255,.98), rgba(255,255,255,.45)); transition:width .5s ease}
-    .times{display:flex; width:100%; justify-content:space-between; color:var(--muted);
+    .times{display:flex; width:100%; justify-content:space-between; color:#c0c7d2;
            font-feature-settings:"tnum" 1; font-variant-numeric:tabular-nums; margin-top:10px; font-size:clamp(16px,2.6vmin,28px)}
+
+    /* Optional last-resort clamping (added only if needed by JS) */
+    .clamp{display:-webkit-box; -webkit-box-orient:vertical; overflow:hidden}
+    .clamp.title-2{-webkit-line-clamp:2}
+    .clamp.title-3{-webkit-line-clamp:3}
+    .clamp.artists-1{-webkit-line-clamp:1}
+    .clamp.artists-2{-webkit-line-clamp:2}
 
     /* Gear + settings drawer */
     .gear{position:fixed; right:16px; bottom:16px; width:48px; height:48px; border-radius:14px; display:grid; place-items:center; border:1px solid rgba(255,255,255,.18);
-      background:rgba(0,0,0,.35); color:var(--fg); cursor:pointer; z-index:3}
+      background:rgba(0,0,0,.35); color:var(--fg); cursor:pointer; z-index:6}
     .gear.hidden{display:none}
-    .drawer{position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:4; background:rgba(0,0,0,.6)}
+    .drawer{position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:7; background:rgba(0,0,0,.6)}
     .drawer.open{display:flex}
     .sheet{width:min(760px,92vw); background:rgba(8,10,13,.9); border:1px solid rgba(255,255,255,.12); border-radius:18px; padding:22px; color:var(--fg); box-shadow:var(--shadow)}
     .row{display:grid; grid-template-columns:160px 1fr; gap:12px; align-items:center; margin:10px 0}
@@ -67,11 +102,11 @@
     .btns{display:flex; gap:12px; justify-content:flex-end; margin-top:14px}
     .btn{appearance:none; border:1px solid rgba(255,255,255,.18); background:#121621; color:var(--fg); padding:.7rem 1.1rem; border-radius:12px; font-weight:700; cursor:pointer}
     .btn.primary{background:var(--accent); border-color:transparent; color:#052d16}
-    .toast{position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:#0e1118; border:1px solid rgba(255,255,255,.12); color:var(--fg); padding:.6rem .8rem; border-radius:12px; box-shadow:var(--shadow); display:none; z-index:10}
+    .toast{position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:#0e1118; border:1px solid rgba(255,255,255,.12); color:var(--fg); padding:.6rem .8rem; border-radius:12px; box-shadow:var(--shadow); display:none; z-index:8}
 
     @media (max-width: 1100px){
       .panel{grid-template-columns:1fr; gap:24px; width:96vw}
-      .title, .artists{white-space:normal; text-align:center}
+      .title, .artists{text-align:center}
     }
   </style>
 </head>
@@ -121,6 +156,9 @@
         <p style="margin:12px 0 0 0; color:#9aa6b6; font-size:14px;">Tip: Press <b>s</b> anytime to open this panel. Tokens are stored only in this browser.</p>
       </div>
     </div>
+
+    <div class="blackout" id="blackout" aria-hidden="true"></div>
+    <div class="neterr" id="neterr" aria-live="polite"><div class="bubble">Network issue — trying to reconnect…</div></div>
   </div>
 
   <div class="toast" id="toast"></div>
@@ -129,7 +167,7 @@
   // Utilities
   const $ = s => document.querySelector(s);
   const fmtTime = ms => { if(!Number.isFinite(ms)||ms<0) ms=0; const s=Math.floor(ms/1000),m=Math.floor(s/60),r=s%60; return m+":"+String(r).padStart(2,"0"); };
-  const b64url = arr => btoa(String.fromCharCode(...new Uint8Array(arr))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+  const b64url = arr => btoa(String.fromCharCode(...new Uint8Array(arr))).replace(/\\+/g,"-").replace(/\\//g,"_").replace(/=+$/,"");
   const rand = (len=64) => { const c="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~"; let s=""; for(let i=0;i<len;i++) s+=c[Math.floor(Math.random()*c.length)]; return s; };
   const toast=(m)=>{const t=$("#toast"); t.textContent=m; t.style.display="block"; setTimeout(()=>t.style.display="none",2400);};
 
@@ -192,15 +230,22 @@
     return await res.json();
   }
 
-  // Render
+  // Render & overlays
   const art=$("#art"), bg=$("#bg"), titleEl=$("#title"), artistsEl=$("#artists");
   const bar=$("#bar"), elapsedEl=$("#elapsed"), durationEl=$("#duration");
+  const blackout=$("#blackout"), neterr=$("#neterr");
   function updateStatus(s){ $("#status").textContent=s; }
+  function setBlackout(on){ blackout.style.display = on ? "block" : "none"; }
+  function showNetErr(on){ neterr.style.display = on ? "grid" : "none"; }
+
   function renderNothing(){
     titleEl.textContent="Nothing playing";
     artistsEl.textContent="—";
     elapsedEl.textContent="0:00"; durationEl.textContent="0:00"; bar.style.width="0%";
     art.src=""; bg.src="";
+    fitAll();
+    showNetErr(false);
+    setBlackout(true); // blank the screen when nothing is playing
   }
   function renderPlayback(d){
     if(!d || !d.item){ renderNothing(); return; }
@@ -212,31 +257,80 @@
     const dur=t.duration_ms||0, pos=d.progress_ms||0;
     durationEl.textContent=fmtTime(dur); elapsedEl.textContent=fmtTime(pos);
     bar.style.width = dur ? (pos/dur*100).toFixed(2)+"%" : "0%";
+    fitAll();
+    // If playback is paused, blackout; else clear overlays
+    setBlackout(!d.is_playing);
+    showNetErr(false);
   }
 
-  // Polling
-  let timer=null, lastETag=null;
+  // Text fitting: shrink first, clamp as last resort
+  function lineHeightPx(el, fs){
+    const st=getComputedStyle(el);
+    let lh = parseFloat(st.lineHeight);
+    if(Number.isNaN(lh) || st.lineHeight === "normal") lh = 1.1 * fs; // approximate
+    return lh;
+  }
+  function fitElement(el, maxLines, minPx){
+    el.classList.remove("clamp","title-2","title-3","artists-1","artists-2");
+    el.style.fontSize = ""; // reset
+    let fs = parseFloat(getComputedStyle(el).fontSize) || 40;
+    const minSize = Math.max(minPx, 18);
+    for(let i=0;i<28;i++){
+      const lh = lineHeightPx(el, fs);
+      const lines = Math.ceil(el.scrollHeight / lh);
+      if(lines <= maxLines) break;
+      fs *= 0.92;
+      if(fs <= minSize){ fs = minSize; break; }
+      el.style.fontSize = fs + "px";
+    }
+    const lh2 = lineHeightPx(el, fs);
+    const lines2 = Math.ceil(el.scrollHeight / lh2);
+    if(lines2 > maxLines){
+      el.classList.add("clamp");
+      if(el.id === "title"){
+        el.classList.add(maxLines >=3 ? "title-3" : "title-2");
+      }else{
+        el.classList.add(maxLines >=2 ? "artists-2" : "artists-1");
+      }
+    }
+  }
+  function fitAll(){
+    fitElement(titleEl, 3, 32);
+    fitElement(artistsEl, 2, 26);
+  }
+  window.addEventListener("resize", () => { fitAll(); });
+
+  // Polling with consecutive error handling
+  let timer=null, lastETag=null, consecutiveErrors=0;
+  const ERROR_THRESHOLD = 3; // show network error after 3 failed polls (~15s)
   async function tick(){
     try{
       updateStatus("Polling…");
       const headers={}; if(lastETag) headers["If-None-Match"]=lastETag;
-      let at=store.get("access_token"); if(!at){ updateStatus("Not authenticated"); return; }
+      let at=store.get("access_token"); if(!at){ updateStatus("Not authenticated"); showNetErr(false); setBlackout(false); return; }
       const res=await fetch("https://api.spotify.com/v1/me/player/currently-playing",{headers:{Authorization:`Bearer ${at}`,...headers}});
       if(res.status===401){ await refreshToken(); return; }
-      if(res.status===204){ renderNothing(); updateStatus("No content"); return; }
-      if(res.status===304){ updateStatus("Unchanged"); return; }
+      if(res.status===204){ consecutiveErrors=0; showNetErr(false); renderNothing(); updateStatus("No content"); return; }
+      if(res.status===304){ consecutiveErrors=0; showNetErr(false); updateStatus("Unchanged"); return; }
       if(!res.ok) throw new Error("Status "+res.status);
       lastETag = res.headers.get("ETag") || lastETag;
       const data=await res.json(); renderPlayback(data);
       updateStatus(data && data.is_playing ? "Playing" : "Paused");
-    }catch(e){ console.error(e); updateStatus("Error"); }
+      consecutiveErrors=0; showNetErr(false);
+    }catch(e){
+      consecutiveErrors++;
+      updateStatus("Error");
+      // On error, do NOT blackout; after threshold, show subtle network message
+      if(consecutiveErrors >= ERROR_THRESHOLD){ setBlackout(false); showNetErr(true); }
+      console.error(e);
+    }
   }
   function start(){ if(timer) clearInterval(timer); tick(); timer=setInterval(tick, 5000); }
   async function whoami(){ try{ await api("/me"); }catch{} }
 
   // Settings Drawer
   const drawer=$("#drawer"), gear=$("#gear");
-  function openDrawer(){ drawer.classList.add("open"); }
+  function openDrawer(){ drawer.classList.add("open"); /* ensure visible over overlays */ setBlackout(false); showNetErr(false); }
   function closeDrawer(){ drawer.classList.remove("open"); }
   $("#loginBtn").onclick=beginLogin;
   $("#logoutBtn").onclick=()=>{ logout(); renderNothing(); toast("Logged out"); openDrawer(); };
@@ -274,8 +368,10 @@
       start();
       lockScreen();
       gear.classList.add("hidden");
+      fitAll();
     }else{
-      renderNothing();
+      // Not authenticated: don't blackout (so you can see settings)
+      setBlackout(false); showNetErr(false);
       updateStatus("Not authenticated");
       openDrawer();
     }
