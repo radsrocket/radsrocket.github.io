@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nowify — GitHub Pages Edition</title>
+  <style>
+    :root{
+      --bg1:#0e0f12;
+      --bg2:#1a1d24;
+      --fg:#e8eaed;
+      --muted:#a6adbb;
+      --accent:#1db954;
+      --card:#0f1115cc;
+      --shadow: 0 10px 30px rgba(0,0,0,.45);
+      --radius: 18px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:linear-gradient(135deg,var(--bg1),var(--bg2));color:var(--fg);font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Noto Sans",sans-serif}
+    .wrap{min-height:100%;display:grid;place-items:center;padding:24px}
+    .card{
+      width:min(860px,95vw);
+      background:var(--card);
+      backdrop-filter: blur(12px);
+      border:1px solid rgba(255,255,255,.06);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      display:grid;
+      grid-template-columns: 220px 1fr;
+      gap:24px;
+      padding:24px;
+      position:relative;
+      overflow:hidden;
+    }
+    .left{display:flex;align-items:center;justify-content:center}
+    .cover{
+      width:220px;height:220px;border-radius:14px;object-fit:cover;box-shadow:var(--shadow);background:#111;
+      border:1px solid rgba(255,255,255,.08);
+    }
+    .right{display:flex;flex-direction:column;gap:16px;min-width:0}
+    .title{font-size:clamp(20px,3.2vw,30px);font-weight:700;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .artists{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .meta{display:flex;gap:10px;align-items:center;color:var(--muted);font-size:.95rem;flex-wrap:wrap}
+    .chip{border:1px solid rgba(255,255,255,.12);padding:.2rem .55rem;border-radius:999px}
+    .controls{display:flex;align-items:center;gap:10px}
+    .btn{
+      appearance:none;border:1px solid rgba(255,255,255,.12);background:#151821; color:var(--fg);
+      padding:.6rem .9rem;border-radius:12px;font-weight:600;cursor:pointer;transition:transform .06s ease,opacity .2s ease;
+    }
+    .btn:hover{opacity:.9}
+    .btn:active{transform:translateY(1px)}
+    .btn.primary{background:var(--accent);border-color:transparent;color:#052d16}
+    .row{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+    .grow{flex:1}
+    .progress{height:8px;background:#0c0f14;border:1px solid rgba(255,255,255,.06);border-radius:999px;overflow:hidden;position:relative}
+    .bar{height:100%;width:0%;background:linear-gradient(90deg,rgba(255,255,255,.85),rgba(255,255,255,.4));transition:width .5s ease}
+    .time{font-feature-settings:"tnum" 1; font-variant-numeric: tabular-nums; color:var(--muted);min-width:54px;text-align:right}
+    .subtle{color:var(--muted)}
+    .status{position:absolute;top:12px;right:12px;font-size:12px;color:var(--muted)}
+    .grid{display:grid;gap:10px}
+    footer{opacity:.75;margin-top:8px;font-size:.9rem}
+    .hidden{display:none !important}
+    @media (max-width:720px){
+      .card{grid-template-columns:1fr}
+      .left{justify-content:flex-start}
+      .cover{width:160px;height:160px}
+    }
+    .bg{
+      position:fixed;inset:0;z-index:-1;
+      background: radial-gradient(1200px circle at 20% 10%, rgba(255,255,255,.06), transparent 40%),
+                  radial-gradient(1800px circle at 100% -10%, rgba(255,255,255,.04), transparent 40%),
+                  linear-gradient(135deg,var(--bg1),var(--bg2));
+      transition: background 600ms ease;
+    }
+    .settings{
+      margin: 16px auto 0;
+      width:min(860px,95vw);
+      display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:center
+    }
+    .input{
+      width:100%;padding:.6rem .75rem;border-radius:12px;border:1px solid rgba(255,255,255,.12);
+      background:#0e1118;color:var(--fg)
+    }
+    .help{font-size:.9rem;color:var(--muted)}
+    .toast{
+      position:fixed;left:50%;bottom:24px;transform:translateX(-50%);
+      background:#0e1118;border:1px solid rgba(255,255,255,.12);color:var(--fg);padding:.6rem .8rem;border-radius:12px;box-shadow:var(--shadow);display:none
+    }
+  </style>
+</head>
+<body>
+  <div class="bg" id="bg"></div>
+  <div class="wrap">
+    <div class="card" id="card">
+      <div class="status" id="status">Idle</div>
+      <div class="left">
+        <img id="art" class="cover" alt="Album art" />
+      </div>
+      <div class="right">
+        <div>
+          <div class="title" id="title">Not playing</div>
+          <div class="artists" id="artists">—</div>
+        </div>
+
+        <div class="meta">
+          <span class="chip" id="deviceChip" title="Playback device"></span>
+          <span class="chip" id="stateChip">Stopped</span>
+          <span class="chip" id="explicitChip" title="Explicit">EXPLICIT</span>
+          <span class="chip" id="volumeChip" title="Volume"></span>
+        </div>
+
+        <div class="row">
+          <div class="grow progress"><div class="bar" id="bar"></div></div>
+          <div class="time"><span id="elapsed">0:00</span></div>
+          <div class="time"><span id="duration">0:00</span></div>
+        </div>
+
+        <div class="row controls">
+          <button class="btn primary" id="loginBtn">Log in with Spotify</button>
+          <button class="btn" id="logoutBtn">Log out</button>
+          <button class="btn" id="refreshBtn">Refresh</button>
+          <span class="subtle" id="whoami"></span>
+        </div>
+        <footer class="subtle">GitHub Pages build. Tokens are stored in your browser's localStorage on this device.</footer>
+      </div>
+    </div>
+
+    <div class="settings">
+      <input class="input" id="clientId" placeholder="Spotify Client ID (required)" />
+      <input class="input" id="redirectUri" placeholder="Redirect URI (must match in Spotify Dashboard)" />
+      <button class="btn" id="saveCfg">Save</button>
+      <div class="help" style="grid-column:1/-1">
+        Tip: On GitHub Pages the Redirect URI usually looks like <code>https://USERNAME.github.io/REPO/</code> (or the exact page path).
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+  const $ = sel => document.querySelector(sel);
+  const fmtTime = ms => {
+    if (!Number.isFinite(ms) || ms < 0) ms = 0;
+    const s = Math.floor(ms/1000), m = Math.floor(s/60), r = s % 60;
+    return m + ":" + String(r).padStart(2, "0");
+  };
+  const b64url = arr => btoa(String.fromCharCode(...new Uint8Array(arr)))
+      .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/,"");
+  const sha256 = async (str) => {
+    const enc = new TextEncoder().encode(str);
+    return await crypto.subtle.digest("SHA-256", enc);
+  };
+  const rand = (len=64) => {
+    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~";
+    let s=""; for(let i=0;i<len;i++) s += chars[Math.floor(Math.random()*chars.length)];
+    return s;
+  };
+  const toast = (msg) => { const t=$("#toast"); t.textContent=msg; t.style.display="block"; setTimeout(()=>t.style.display="none", 2400); };
+
+  const store = {
+    get k(){ return JSON.parse(localStorage.getItem("nowify_cfg")||"{}"); },
+    set k(v){ localStorage.setItem("nowify_cfg", JSON.stringify(v)); },
+    set(key, val){ const a=this.k; a[key]=val; this.k=a; },
+    get(key){ return this.k[key]; },
+    clear(){ localStorage.removeItem("nowify_cfg"); }
+  };
+  $("#clientId").value = store.get("client_id") || "";
+  $("#redirectUri").value = store.get("redirect_uri") || (location.origin + location.pathname);
+  $("#saveCfg").onclick = () => {
+    store.set("client_id", $("#clientId").value.trim());
+    store.set("redirect_uri", $("#redirectUri").value.trim());
+    toast("Saved configuration.");
+  };
+
+  const SCOPES = [
+    "user-read-email",
+    "user-read-private",
+    "user-read-currently-playing",
+    "user-read-playback-state"
+  ].join(" ");
+
+  async function beginLogin(){
+    const clientId = store.get("client_id");
+    const redirectUri = store.get("redirect_uri") || (location.origin + location.pathname);
+    if (!clientId){ toast("Please enter your Spotify Client ID and Save."); return; }
+    const state = rand(16);
+    const verifier = rand(64);
+    const challenge = b64url(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)));
+    store.set("code_verifier", verifier);
+    store.set("oauth_state", state);
+    const url = new URL("https://accounts.spotify.com/authorize");
+    url.searchParams.set("response_type","code");
+    url.searchParams.set("client_id", clientId);
+    url.searchParams.set("scope", SCOPES);
+    url.searchParams.set("redirect_uri", redirectUri);
+    url.searchParams.set("state", state);
+    url.searchParams.set("code_challenge_method","S256");
+    url.searchParams.set("code_challenge", challenge);
+    location.href = url.toString();
+  }
+
+  async function exchangeCodeForToken(code){
+    const clientId = store.get("client_id");
+    const redirectUri = store.get("redirect_uri") || (location.origin + location.pathname);
+    const verifier = store.get("code_verifier");
+    const body = new URLSearchParams({
+      client_id: clientId,
+      grant_type: "authorization_code",
+      code,
+      redirect_uri: redirectUri,
+      code_verifier: verifier
+    });
+    const res = await fetch("https://accounts.spotify.com/api/token", {
+      method:"POST",
+      headers: { "Content-Type":"application/x-www-form-urlencoded" },
+      body
+    });
+    if(!res.ok){ throw new Error("Token exchange failed: " + res.status); }
+    const data = await res.json();
+    persistTokens(data);
+    return data;
+  }
+  async function refreshToken(){
+    const clientId = store.get("client_id");
+    const refresh = store.get("refresh_token");
+    if (!refresh) return;
+    const body = new URLSearchParams({
+      client_id: clientId,
+      grant_type: "refresh_token",
+      refresh_token: refresh
+    });
+    const res = await fetch("https://accounts.spotify.com/api/token", {
+      method:"POST",
+      headers: { "Content-Type":"application/x-www-form-urlencoded" },
+      body
+    });
+    if(!res.ok){ throw new Error("Refresh failed: " + res.status); }
+    const data = await res.json();
+    persistTokens(data, true);
+    return data;
+  }
+  function persistTokens(data, keepRefreshIfMissing=false){
+    if (data.access_token) store.set("access_token", data.access_token);
+    if (data.expires_in)   store.set("expires_at", Date.now() + (data.expires_in-30)*1000);
+    if (data.refresh_token) store.set("refresh_token", data.refresh_token);
+    else if (keepRefreshIfMissing) {}
+  }
+  function logout(){
+    store.set("access_token", null);
+    store.set("refresh_token", null);
+    store.set("expires_at", 0);
+    $("#whoami").textContent = "";
+    updateStatus("Logged out");
+  }
+
+  async function api(path){
+    let at = store.get("access_token");
+    let exp = store.get("expires_at") || 0;
+    if (!at) throw new Error("No access token. Please log in.");
+    if (Date.now() > exp){ try{ await refreshToken(); } catch(e){ console.error(e); } at = store.get("access_token"); }
+    const res = await fetch("https://api.spotify.com/v1"+path, { headers:{ Authorization:`Bearer ${at}` } });
+    if (res.status === 204) return null;
+    if (res.status === 401){ await refreshToken(); return api(path); }
+    if (!res.ok) throw new Error("API "+path+" failed: "+res.status);
+    return await res.json();
+  }
+
+  const art = $("#art"), titleEl = $("#title"), artistsEl=$("#artists");
+  const bar=$("#bar"), elapsedEl=$("#elapsed"), durationEl=$("#duration");
+  const deviceChip=$("#deviceChip"), stateChip=$("#stateChip"), explicitChip=$("#explicitChip"), volumeChip=$("#volumeChip");
+
+  function updateStatus(s){ $("#status").textContent = s; }
+  function setBackgroundFromImage(img){
+    try{
+      const c = document.createElement("canvas"), x=c.getContext("2d",{willReadFrequently:true});
+      const S=32; c.width=S; c.height=S;
+      x.drawImage(img, 0,0,S,S);
+      let r=0,g=0,b=0,n=0;
+      const data = x.getImageData(0,0,S,S).data;
+      for(let i=0;i<data.length;i+=4){
+        const a = data[i+3]; if (a<200) continue;
+        const rr=data[i], gg=data[i+1], bb=data[i+2];
+        const l = 0.2126*rr+0.7152*gg+0.0722*bb;
+        if (l<25) continue;
+        r+=rr; g+=gg; b+=bb; n++;
+      }
+      if(n){
+        r=Math.round(r/n); g=Math.round(g/n); b=Math.round(b/n);
+        const bgEl = $("#bg");
+        const tint = `rgba(${r},${g},${b},0.28)`;
+        const tint2 = `rgba(${Math.max(0,r-24)},${Math.max(0,g-24)},${Math.max(0,b-24)},0.22)`;
+        bgEl.style.background = `radial-gradient(1200px circle at 20% 10%, ${tint}, transparent 40%),
+                                 radial-gradient(1800px circle at 100% -10%, ${tint2}, transparent 40%),
+                                 linear-gradient(135deg, rgb(${Math.max(6,r*0.15)}, ${Math.max(8,g*0.15)}, ${Math.max(10,b*0.15)}), #0b0d11)`;
+      }
+    }catch(e){}
+  }
+  function renderNothing(){
+    $("#title").textContent = "Nothing playing";
+    $("#artists").textContent = "—";
+    $("#stateChip").textContent = "Stopped";
+    $("#elapsed").textContent="0:00"; $("#duration").textContent="0:00";
+    $("#bar").style.width="0%";
+    $("#art").src = "";
+    $("#explicitChip").classList.add("hidden");
+    $("#deviceChip").textContent="";
+    $("#volumeChip").textContent="";
+  }
+  function renderPlayback(d){
+    if (!d || !d.item){ renderNothing(); return; }
+    const t = d.item;
+    $("#title").textContent = t.name || "—";
+    $("#artists").textContent = (t.artists||[]).map(a=>a.name).join(", ") || "—";
+    const artUrl = (t.album && t.album.images && t.album.images[0] && t.album.images[0].url) || "";
+    if (artUrl){ $("#art").onload = ()=>setBackgroundFromImage($("#art")); $("#art").src = artUrl; }
+    const dur = t.duration_ms || 0;
+    const pos = d.progress_ms || 0;
+    $("#duration").textContent = fmtTime(dur);
+    $("#elapsed").textContent = fmtTime(pos);
+    $("#bar").style.width = dur ? (pos/dur*100).toFixed(2)+"%" : "0%";
+    $("#stateChip").textContent = d.is_playing ? "Playing" : "Paused";
+    $("#explicitChip").classList.toggle("hidden", !t.explicit);
+    $("#deviceChip").textContent = d.device ? (d.device.name || "Unknown device") : "";
+    $("#volumeChip").textContent = d.device && Number.isFinite(d.device.volume_percent) ? `Vol ${d.device.volume_percent}%` : "";
+  }
+  let timer=null, lastETag=null;
+  async function tick(){
+    try{
+      updateStatus("Polling…");
+      const headers = { };
+      if (lastETag) headers["If-None-Match"] = lastETag;
+      let at = store.get("access_token");
+      if (!at){ updateStatus("Not authenticated"); return; }
+      const res = await fetch("https://api.spotify.com/v1/me/player/currently-playing", {
+        headers: { Authorization:`Bearer ${at}`, ...headers }
+      });
+      if (res.status === 401){ await refreshToken(); return; }
+      if (res.status === 204){ renderNothing(); updateStatus("No content"); return; }
+      if (res.status === 304){ updateStatus("Unchanged"); return; }
+      if (!res.ok){ throw new Error("Status "+res.status); }
+      lastETag = res.headers.get("ETag") || lastETag;
+      const data = await res.json();
+      renderPlayback(data);
+      updateStatus(data && data.is_playing ? "Playing" : "Paused");
+    }catch(e){
+      updateStatus("Error");
+      console.error(e);
+    }
+  }
+  function start(){
+    if (timer) clearInterval(timer);
+    tick();
+    timer = setInterval(tick, 5000);
+  }
+  async function whoami(){
+    try{
+      const me = await api("/me");
+      $("#whoami").textContent = me ? `Logged in as ${me.display_name || me.id}` : "";
+    }catch{}
+  }
+  $("#loginBtn").onclick = beginLogin;
+  $("#refreshBtn").onclick = tick;
+  $("#logoutBtn").onclick = () => { logout(); renderNothing(); };
+  (async function init(){
+    $("#clientId").value = store.get("client_id") || "";
+    $("#redirectUri").value = store.get("redirect_uri") || (location.origin + location.pathname);
+    const params = new URLSearchParams(location.search);
+    if (params.has("code")){
+      try{
+        const code = params.get("code");
+        const state = params.get("state");
+        if (state !== store.get("oauth_state")) throw new Error("State mismatch");
+        updateStatus("Completing login…");
+        await exchangeCodeForToken(code);
+        history.replaceState({}, "", store.get("redirect_uri") || (location.origin + location.pathname));
+        toast("Logged in");
+      }catch(e){
+        console.error(e);
+        toast("Login failed. Check Spotify settings & Console.");
+      }
+    }
+    if (store.get("access_token")){
+      whoami();
+      start();
+    } else {
+      renderNothing();
+      updateStatus("Not authenticated");
+    }
+  })();
+  </script>
+</body>
+</html>
