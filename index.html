@@ -10,16 +10,18 @@
       --muted:#9aa6b2;
       --accent:#1db954;
       --shadow: 0 40px 80px rgba(0,0,0,.6);
-      --gap: 2.2vw; /* kleiner gap */
+      --gap: 3.2vw; /* keep center gap */
     }
     *{box-sizing:border-box}
     html,body{height:100%;margin:0;background:#000;color:var(--fg);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial,sans-serif;overflow:hidden}
-    .stage{position:fixed;inset:0;display:grid;place-items:center}
 
-    /* Blackout bij pauze / niets */
+    /* Stage fills screen; no extra margins */
+    .stage{position:fixed;inset:0;display:block}
+
+    /* Blackout when paused / nothing */
     .blackout{position:fixed; inset:0; background:#000; display:none; z-index:5}
 
-    /* Netwerkfout overlay */
+    /* Centered network error overlay */
     .neterr{
       position:fixed; inset:0; display:none; z-index:5;
       pointer-events:none; display:grid; place-items:center;
@@ -34,55 +36,54 @@
       text-align:center;
     }
 
-    /* Maximale benutting scherm */
+    /* Edge-to-edge panel with only center gap preserved */
     .panel{
       position:relative; z-index:2;
       display:grid;
-      grid-template-columns: minmax(680px, 75vmin) minmax(640px, 1fr); /* grotere art + ruime tekstkolom */
-      gap:clamp(12px, var(--gap), 36px);
+      grid-template-columns: minmax(780px, 85vmin) minmax(680px, 1fr); /* bigger art + wide text column */
+      gap:clamp(16px, var(--gap), 64px);
       align-items:center;
-      width:99vw; max-width:100vw;
-      padding:clamp(6px, 1.2vw, 14px); /* minimale padding */
+      width:100vw; height:100vh; padding:0; margin:0;
     }
-
-    .left{display:grid; align-content:center; gap:1.6vmin; min-width:0}
+    .left{display:grid; align-content:center; min-width:0}
     .right{
       display:grid; align-content:center;
-      gap:clamp(10px, 2.6vmin, 28px); /* iets lucht tussen elementen */
+      gap:clamp(10px, 2.4vmin, 28px);
       min-width:0;
     }
     .art{
-      width:100%;
+      width:100%; height:auto;
       aspect-ratio:1/1;
       border-radius:0;
-      object-fit:cover; box-shadow:var(--shadow);
-      border:0; /* geen rand -> nog iets groter beeld */
+      object-fit:cover;
+      box-shadow:var(--shadow);
+      border:0; /* no border to maximize size */
       background:#0b0f14;
     }
 
-    /* Grotere basis-typografie; JS zal zo nodig verkleinen en pas als laatste trunceren */
+    /* Larger typography; fit down if needed */
     .title{
       font-weight:800; letter-spacing:.2px;
-      font-size:clamp(44px, 9.6vmin, 128px);
-      line-height:1.06;
+      font-size:clamp(52px, 11.5vmin, 156px);
+      line-height:1.04;
       max-width:100%;
       overflow:visible;
       word-break:break-word;
     }
     .artists{
       color:#c7cfdb;
-      font-size:clamp(32px, 7.2vmin, 96px);
-      line-height:1.06;
+      font-size:clamp(38px, 9.2vmin, 120px);
+      line-height:1.04;
       max-width:100%;
       overflow:visible;
       word-break:break-word;
     }
 
-    /* Progress: dun, donkergrijze rest */
+    /* Progress: thin, darker remainder for contrast */
     .progress{
       width:100%; height:18px; border-radius:999px;
       border:1px solid rgba(255,255,255,.18);
-      background:#606a78; /* darker remainder */
+      background:#606a78; /* darker grey remainder */
       overflow:hidden
     }
     .bar{
@@ -91,7 +92,7 @@
       background-color:rgba(255,255,255,.9);
     }
 
-    /* Clamping voor laatste redmiddel */
+    /* Clamping as last resort */
     .clamp{display:-webkit-box; -webkit-box-orient:vertical; overflow:hidden}
     .clamp.title-2{-webkit-line-clamp:2}
     .clamp.title-3{-webkit-line-clamp:3}
@@ -133,9 +134,9 @@
     .btn.primary{background:var(--accent); border-color:transparent; color:#052d16}
     .btn:disabled{opacity:.6; cursor:not-allowed}
 
-    /* Mobiel */
+    /* Mobile adjustments */
     @media (max-width: 1100px){
-      .panel{grid-template-columns:1fr; gap:20px; width:100vw; padding:clamp(4px, 2.8vw, 16px)}
+      .panel{grid-template-columns:1fr; gap:20px; width:100vw; height:100vh; padding:0}
       .title, .artists{text-align:center}
     }
     @media (max-width: 640px){
@@ -201,17 +202,20 @@
   <div class="toast" id="toast"></div>
 
   <script>
+  // Utilities
   const $ = s => document.querySelector(s);
-  const b64url = arr => btoa(String.fromCharCode(...new Uint8Array(arr))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+  const b64url = arr => btoa(String.fromCharCode(...new Uint8Array(arr))).replace(/\\+/g,"-").replace(/\\//g,"_").replace(/=+$/,"");
   const randVer = () => { const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~"; const a = new Uint8Array(64); crypto.getRandomValues(a); return Array.from(a, b => chars[b % chars.length]).join(""); };
   const toast=(m)=>{const t=$("#toast"); t.textContent=m; t.style.display="block"; setTimeout(()=>t.style.display="none",2600);};
 
   const POLL_MS = 5000;
 
+  // Storage
   const store={ get k(){return JSON.parse(localStorage.getItem("nowify_cfg")||"{}")},
                 set k(v){localStorage.setItem("nowify_cfg",JSON.stringify(v))},
                 set(a,b){const o=this.k;o[a]=b;this.k=o}, get(a){return this.k[a]}, clear(){localStorage.removeItem("nowify_cfg")} };
 
+  // OAuth (PKCE)
   const SCOPES=[ "user-read-email","user-read-private","user-read-currently-playing","user-read-playback-state" ].join(" ");
   async function beginLogin(){
     const cid = $("#clientId").value.trim();
@@ -263,10 +267,11 @@
     if(d.access_token) store.set("access_token", d.access_token);
     if(d.expires_in) store.set("expires_at", Date.now() + (d.expires_in-30)*1000);
     if(d.refresh_token) store.set("refresh_token", d.refresh_token);
-    else if(keep){}
+    else if(keep){/* keep old refresh token */}
   }
   function logout(){ store.set("access_token",null); store.set("refresh_token",null); store.set("expires_at",0); }
 
+  // API
   async function api(path){
     let at=store.get("access_token"); let exp=store.get("expires_at")||0;
     if(!at) throw new Error("No access token");
@@ -278,14 +283,16 @@
     return await res.json();
   }
 
+  // Render & overlays
   const art=$("#art"), titleEl=$("#title"), artistsEl=$("#artists");
   const bar=$("#bar");
   const blackout=$("#blackout"), neterr=$("#neterr");
   const setBlackout = on => blackout.style.display = on ? "block" : "none";
   const showNetErr = on => neterr.style.display = on ? "grid" : "none";
 
+  // Smooth progress animation
   let lastPosMs=null, lastDurMs=null, lastIsPlaying=false;
-  const animateProgress=(posMs, durMs, isPlaying, horizonMs=5000)=>{
+  const animateProgress=(posMs, durMs, isPlaying, horizonMs=POLL_MS)=>{
     if(!durMs || durMs<=0){ bar.style.transition="none"; bar.style.width="0%"; return; }
     const startPct = Math.max(0, Math.min(100, (posMs/durMs)*100));
     bar.style.transition = "none";
@@ -321,13 +328,14 @@
     fitAll();
     setBlackout(!d.is_playing);
     showNetErr(false);
-    animateProgress(pos, dur, d.is_playing, 5000);
+    animateProgress(pos, dur, d.is_playing, POLL_MS);
   }
 
+  // Text fitting: shrink first, then clamp
   const lineHeightPx=(el, fs)=>{
     const st=getComputedStyle(el);
     let lh = parseFloat(st.lineHeight);
-    if(Number.isNaN(lh) || st.lineHeight === "normal") lh = 1.06 * fs;
+    if(Number.isNaN(lh) || st.lineHeight === "normal") lh = 1.04 * fs;
     return lh;
   };
   function fitElement(el, maxLines, minPx){
@@ -352,11 +360,12 @@
     }
   }
   function fitAll(){
-    fitElement(titleEl, 3, 34);
-    fitElement(artistsEl, 2, 28);
+    fitElement(titleEl, 3, 36);
+    fitElement(artistsEl, 2, 30);
   }
   window.addEventListener("resize", fitAll);
 
+  // Polling and error handling
   let timer=null, lastETag=null, consecutiveErrors=0;
   const ERROR_THRESHOLD = 3;
   async function tick(){
@@ -369,8 +378,8 @@
       if(res.status===304){
         consecutiveErrors=0; showNetErr(false);
         if(lastDurMs!=null && lastPosMs!=null && lastIsPlaying){
-          lastPosMs = Math.min(lastPosMs + 5000, lastDurMs);
-          animateProgress(lastPosMs, lastDurMs, true, 5000);
+          lastPosMs = Math.min(lastPosMs + POLL_MS, lastDurMs);
+          animateProgress(lastPosMs, lastDurMs, true, POLL_MS);
         }
         return;
       }
@@ -384,9 +393,10 @@
       console.error(e);
     }
   }
-  function start(){ if(timer) clearInterval(timer); tick(); timer=setInterval(tick, 5000); }
+  function start(){ if(timer) clearInterval(timer); tick(); timer=setInterval(tick, POLL_MS); }
   async function whoami(){ try{ await api("/me"); }catch{} }
 
+  // Settings Drawer hooks
   const drawer=$("#drawer"), gear=$("#gear");
   function openDrawer(){ drawer.classList.add("open"); setBlackout(false); showNetErr(false); }
   function closeDrawer(){ drawer.classList.remove("open"); }
@@ -405,10 +415,12 @@
     if(e.key==="Enter" && $("#drawer").classList.contains("open")){ e.preventDefault(); beginLogin(); }
   });
 
+  // Wake Lock
   let wl=null;
   async function lockScreen(){ try{ if("wakeLock" in navigator){ wl=await navigator.wakeLock.request("screen"); wl.addEventListener("release",()=>{}); } }catch(e){} }
   document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible" && wl && wl.released){ lockScreen(); } });
 
+  // Init
   (async function init(){
     $("#clientId").value = store.get("client_id") || "";
     $("#redirectUri").value = store.get("redirect_uri") || (location.origin + location.pathname);
