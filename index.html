@@ -58,7 +58,6 @@
     }
     .title{
       font-weight:800; letter-spacing:.2px;
-      /* Larger base sizes, then JS will fit down as needed */
       font-size:clamp(40px, 8.2vmin, 104px);
       line-height:1.08;
       max-width:100%;
@@ -74,15 +73,17 @@
       word-break:break-word;
     }
 
+    /* Progress bar: thinner, with solid light grey remainder */
     .progress{
-      width:100%; height:24px; border-radius:999px;
+      width:100%; height:18px; border-radius:999px;
       border:1px solid rgba(255,255,255,.18);
-      background:rgba(255,255,255,.06); overflow:hidden
+      background:#cfd6e0; /* solid light grey remainder */
+      overflow:hidden
     }
     .bar{
       height:100%; width:0%;
       background:linear-gradient(90deg, rgba(255,255,255,.98), rgba(255,255,255,.45));
-      background-color:rgba(255,255,255,.85);
+      background-color:rgba(255,255,255,.9);
     }
     /* transition set dynamically for smooth animation */
 
