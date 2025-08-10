@@ -3,64 +3,74 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Nowify — Kiosk (Left/Right)</title>
+  <title>Nowify — Kiosk (Large)</title>
   <style>
     :root{
-      --fg:#f4f7fb;
-      --muted:#c3cad6;
+      --fg:#f6f8fb;
+      --muted:#c7cfdb;
       --accent:#1db954;
-      --shadow: 0 30px 60px rgba(0,0,0,.55);
+      --shadow: 0 40px 80px rgba(0,0,0,.6);
       --glow: 0 0 160px 60px rgba(0,0,0,.55) inset;
     }
     *{box-sizing:border-box}
-    html,body{height:100%;margin:0;background:#080a0d;color:var(--fg);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial,sans-serif;overflow:hidden}
+    html,body{height:100%;margin:0;background:#07090c;color:var(--fg);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial,sans-serif;overflow:hidden}
     .stage{position:fixed;inset:0;display:grid;place-items:center}
     .bg-wrap{position:absolute;inset:0;overflow:hidden}
-    .bg-img{position:absolute;inset:-6vh -6vw;width:112vw;height:112vh;object-fit:cover;filter:blur(48px) brightness(.55) saturate(1.15);transform:scale(1.1)}
+    .bg-img{position:absolute;inset:-6vh -6vw;width:112vw;height:112vh;object-fit:cover;filter:blur(50px) brightness(.5) saturate(1.2);transform:scale(1.1)}
     .vignette{position:absolute;inset:0;pointer-events:none;background:
-      radial-gradient(1200px 1200px at 50% 30%, rgba(255,255,255,.12), transparent 45%),
-      linear-gradient(180deg, rgba(0,0,0,.55), rgba(0,0,0,.65)); box-shadow:var(--glow)}
+      radial-gradient(1400px 1200px at 50% 30%, rgba(255,255,255,.12), transparent 45%),
+      linear-gradient(180deg, rgba(0,0,0,.55), rgba(0,0,0,.7)); box-shadow:var(--glow)}
     .status{position:fixed; top:16px; left:16px; font-size:14px; color:#b1b8c8; opacity:.85; z-index:3}
 
-    /* Left/Right layout */
+    /* Layout tuned for big screens (art-dominant) */
     .panel{
       position:relative; z-index:2;
       display:grid;
-      grid-template-columns: minmax(240px, 42vmin) minmax(320px, 1fr);
-      gap:4vw; align-items:center;
-      width:min(92vw, 1600px); padding:2vw;
+      grid-template-columns: minmax(480px, 65vmin) minmax(520px, 1fr);
+      gap:5vw; align-items:center;
+      width:min(94vw, 1900px); padding:2.5vw;
     }
+    .left, .right{display:grid; align-content:center; gap:2.2vmin}
     .art{
-      width:100%; aspect-ratio:1/1; border-radius:24px; object-fit:cover; box-shadow:var(--shadow);
-      border:1px solid rgba(255,255,255,.15); background:#0c0f14;
+      width:100%;
+      aspect-ratio:1/1;
+      border-radius:28px; object-fit:cover; box-shadow:var(--shadow);
+      border:1px solid rgba(255,255,255,.16); background:#0b0f14;
     }
-    .right{
-      display:grid; grid-template-rows:auto auto auto; gap:2.4vmin; align-items:center;
+    .title{
+      font-weight:800; letter-spacing:.2px;
+      font-size:clamp(36px, 6.8vmin, 92px);
+      text-shadow:0 3px 12px rgba(0,0,0,.6);
+      max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
     }
-    .title{font-weight:800; letter-spacing:.2px; font-size:clamp(28px, 5.2vmin, 64px); text-shadow:0 2px 8px rgba(0,0,0,.55);
-      max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-    .artists{color:var(--muted); font-size:clamp(18px, 3.4vmin, 36px); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+    .artists{
+      color:var(--muted);
+      font-size:clamp(24px, 5.2vmin, 72px);
+      max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    }
 
-    .progress{width:100%; height:16px; border-radius:999px; border:1px solid rgba(255,255,255,.18); background:rgba(0,0,0,.35); overflow:hidden}
-    .bar{height:100%; width:0%; background:linear-gradient(90deg, rgba(255,255,255,.95), rgba(255,255,255,.45)); transition:width .5s ease}
-    .times{display:flex; width:100%; justify-content:space-between; color:var(--muted); font-feature-settings:"tnum" 1; font-variant-numeric:tabular-nums; margin-top:6px}
+    .progress{width:100%; height:20px; border-radius:999px; border:1px solid rgba(255,255,255,.18); background:rgba(0,0,0,.35); overflow:hidden}
+    .bar{height:100%; width:0%; background:linear-gradient(90deg, rgba(255,255,255,.98), rgba(255,255,255,.45)); transition:width .5s ease}
+    .times{display:flex; width:100%; justify-content:space-between; color:var(--muted);
+           font-feature-settings:"tnum" 1; font-variant-numeric:tabular-nums; margin-top:10px; font-size:clamp(16px,2.6vmin,28px)}
 
     /* Gear + settings drawer */
-    .gear{position:fixed; right:16px; bottom:16px; width:44px; height:44px; border-radius:12px; display:grid; place-items:center; border:1px solid rgba(255,255,255,.18);
+    .gear{position:fixed; right:16px; bottom:16px; width:48px; height:48px; border-radius:14px; display:grid; place-items:center; border:1px solid rgba(255,255,255,.18);
       background:rgba(0,0,0,.35); color:var(--fg); cursor:pointer; z-index:3}
     .gear.hidden{display:none}
     .drawer{position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:4; background:rgba(0,0,0,.6)}
     .drawer.open{display:flex}
-    .sheet{width:min(720px,92vw); background:rgba(8,10,13,.9); border:1px solid rgba(255,255,255,.12); border-radius:18px; padding:22px; color:var(--fg); box-shadow:var(--shadow)}
+    .sheet{width:min(760px,92vw); background:rgba(8,10,13,.9); border:1px solid rgba(255,255,255,.12); border-radius:18px; padding:22px; color:var(--fg); box-shadow:var(--shadow)}
     .row{display:grid; grid-template-columns:160px 1fr; gap:12px; align-items:center; margin:10px 0}
     label{opacity:.85}
-    input{width:100%; padding:.7rem .8rem; border-radius:12px; border:1px solid rgba(255,255,255,.15); background:#0e1118; color:var(--fg); font-size:16px}
+    input{width:100%; padding:.8rem .9rem; border-radius:12px; border:1px solid rgba(255,255,255,.15); background:#0e1118; color:var(--fg); font-size:16px}
     .btns{display:flex; gap:12px; justify-content:flex-end; margin-top:14px}
-    .btn{appearance:none; border:1px solid rgba(255,255,255,.18); background:#121621; color:var(--fg); padding:.65rem 1rem; border-radius:12px; font-weight:700; cursor:pointer}
+    .btn{appearance:none; border:1px solid rgba(255,255,255,.18); background:#121621; color:var(--fg); padding:.7rem 1.1rem; border-radius:12px; font-weight:700; cursor:pointer}
     .btn.primary{background:var(--accent); border-color:transparent; color:#052d16}
     .toast{position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:#0e1118; border:1px solid rgba(255,255,255,.12); color:var(--fg); padding:.6rem .8rem; border-radius:12px; box-shadow:var(--shadow); display:none; z-index:10}
-    @media (max-width: 900px){
-      .panel{grid-template-columns: 1fr; gap:24px; width:94vw}
+
+    @media (max-width: 1100px){
+      .panel{grid-template-columns:1fr; gap:24px; width:96vw}
       .title, .artists{white-space:normal; text-align:center}
     }
   </style>
@@ -75,14 +85,14 @@
     <div class="status" id="status">Idle</div>
 
     <div class="panel">
-      <img id="art" class="art" alt="Album art" />
+      <div class="left">
+        <img id="art" class="art" alt="Album art" />
+        <div class="progress"><div class="bar" id="bar"></div></div>
+        <div class="times"><div id="elapsed">0:00</div><div id="duration">0:00</div></div>
+      </div>
       <div class="right">
         <div class="title" id="title">Not playing</div>
         <div class="artists" id="artists">—</div>
-        <div>
-          <div class="progress"><div class="bar" id="bar"></div></div>
-          <div class="times"><div id="elapsed">0:00</div><div id="duration">0:00</div></div>
-        </div>
       </div>
     </div>
 
