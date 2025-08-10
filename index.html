@@ -10,17 +10,11 @@
       --muted:#9aa6b2;
       --accent:#1db954;
       --shadow: 0 40px 80px rgba(0,0,0,.6);
-      --glow: 0 0 160px 60px rgba(0,0,0,.55) inset;
-      --gap: 5vw;
+      --gap: 6vw;
     }
     *{box-sizing:border-box}
-    html,body{height:100%;margin:0;background:#07090c;color:var(--fg);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial,sans-serif;overflow:hidden}
+    html,body{height:100%;margin:0;background:#000;color:var(--fg);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial,sans-serif;overflow:hidden}
     .stage{position:fixed;inset:0;display:grid;place-items:center}
-    .bg-wrap{position:absolute;inset:0;overflow:hidden}
-    .bg-img{position:absolute;inset:-6vh -6vw;width:112vw;height:112vh;object-fit:cover;filter:blur(50px) brightness(.5) saturate(1.2);transform:scale(1.1)}
-    .vignette{position:absolute;inset:0;pointer-events:none;background:
-      radial-gradient(1400px 1200px at 50% 30%, rgba(255,255,255,.12), transparent 45%),
-      linear-gradient(180deg, rgba(0,0,0,.55), rgba(0,0,0,.7)); box-shadow:var(--glow)}
 
     /* Full-screen blackout overlay for paused / nothing playing */
     .blackout{position:fixed; inset:0; background:#000; display:none; z-index:5}
@@ -28,17 +22,15 @@
     /* Centered network error overlay (no blackout) */
     .neterr{
       position:fixed; inset:0; display:none; z-index:5;
-      pointer-events:none; /* clicks pass through */
-      display:grid; place-items:center;
+      pointer-events:none; display:grid; place-items:center;
     }
     .neterr .bubble{
       color:var(--muted);
       font-size:clamp(18px, 3.2vmin, 28px);
-      background:rgba(0,0,0,0.35);
+      background:rgba(255,255,255,0.06);
       padding:1rem 1.25rem;
       border-radius:14px;
       border:1px solid rgba(255,255,255,0.12);
-      backdrop-filter: blur(6px);
       text-align:center;
     }
 
@@ -46,15 +38,15 @@
     .panel{
       position:relative; z-index:2;
       display:grid;
-      grid-template-columns: minmax(520px, 66vmin) minmax(560px, 1fr);
+      grid-template-columns: minmax(560px, 68vmin) minmax(600px, 1fr);
       gap:var(--gap); align-items:center;
-      width:min(94vw, 1920px); padding:calc(var(--gap) * 0.5);
+      width:min(95vw, 2000px); padding:calc(var(--gap) * 0.5);
     }
     .left{display:grid; align-content:center; gap:2.4vmin; min-width:0}
     .right{
       display:grid;
       align-content:center;
-      gap:3.2vmin; /* more breathing room */
+      gap:3.6vmin; /* more breathing room */
       min-width:0;
     }
     .art{
@@ -66,25 +58,33 @@
     }
     .title{
       font-weight:800; letter-spacing:.2px;
-      font-size:clamp(36px, 7.4vmin, 104px); /* a bit larger by default */
+      /* Larger base sizes, then JS will fit down as needed */
+      font-size:clamp(40px, 8.2vmin, 104px);
       line-height:1.08;
-      text-shadow:0 3px 12px rgba(0,0,0,.6);
       max-width:100%;
       overflow:visible;
       word-break:break-word;
     }
     .artists{
       color:#c7cfdb;
-      font-size:clamp(24px, 5.7vmin, 84px); /* a bit larger */
+      font-size:clamp(28px, 6.4vmin, 84px);
       line-height:1.1;
       max-width:100%;
       overflow:visible;
       word-break:break-word;
     }
 
-    .progress{width:100%; height:22px; border-radius:999px; border:1px solid rgba(255,255,255,.18); background:rgba(0,0,0,.35); overflow:hidden}
-    .bar{height:100%; width:0%}
-    /* We'll set linear transitions dynamically for smooth movement */
+    .progress{
+      width:100%; height:24px; border-radius:999px;
+      border:1px solid rgba(255,255,255,.18);
+      background:rgba(255,255,255,.06); overflow:hidden
+    }
+    .bar{
+      height:100%; width:0%;
+      background:linear-gradient(90deg, rgba(255,255,255,.98), rgba(255,255,255,.45));
+      background-color:rgba(255,255,255,.85);
+    }
+    /* transition set dynamically for smooth animation */
 
     /* Optional last-resort clamping (added only if needed by JS) */
     .clamp{display:-webkit-box; -webkit-box-orient:vertical; overflow:hidden}
@@ -95,18 +95,18 @@
 
     /* Gear + settings drawer */
     .gear{position:fixed; right:16px; bottom:16px; width:48px; height:48px; border-radius:14px; display:grid; place-items:center; border:1px solid rgba(255,255,255,.18);
-      background:rgba(0,0,0,.35); color:var(--fg); cursor:pointer; z-index:6}
+      background:rgba(255,255,255,.06); color:var(--fg); cursor:pointer; z-index:6}
     .gear.hidden{display:none}
-    .drawer{position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:7; background:rgba(0,0,0,.6)}
+    .drawer{position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:7; background:rgba(0,0,0,.7)}
     .drawer.open{display:flex}
-    .sheet{width:min(760px,92vw); background:rgba(8,10,13,.9); border:1px solid rgba(255,255,255,.12); border-radius:18px; padding:22px; color:var(--fg); box-shadow:var(--shadow)}
+    .sheet{width:min(760px,92vw); background:#0b0b0b; border:1px solid rgba(255,255,255,.12); border-radius:18px; padding:22px; color:var(--fg); box-shadow:0 20px 60px rgba(0,0,0,.7)}
     .row{display:grid; grid-template-columns:160px 1fr; gap:12px; align-items:center; margin:10px 0}
     label{opacity:.85}
     input{width:100%; padding:.8rem .9rem; border-radius:12px; border:1px solid rgba(255,255,255,.15); background:#0e1118; color:var(--fg); font-size:16px}
     .btns{display:flex; gap:12px; justify-content:flex-end; margin-top:14px}
     .btn{appearance:none; border:1px solid rgba(255,255,255,.18); background:#121621; color:var(--fg); padding:.7rem 1.1rem; border-radius:12px; font-weight:700; cursor:pointer}
     .btn.primary{background:var(--accent); border-color:transparent; color:#052d16}
-    .toast{position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:#0e1118; border:1px solid rgba(255,255,255,.12); color:var(--fg); padding:.6rem .8rem; border-radius:12px; box-shadow:var(--shadow); display:none; z-index:8}
+    .toast{position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:#0e1118; border:1px solid rgba(255,255,255,.12); color:var(--fg); padding:.6rem .8rem; border-radius:12px; box-shadow:0 20px 60px rgba(0,0,0,.7); display:none; z-index:8}
 
     @media (max-width: 1100px){
       .panel{grid-template-columns:1fr; gap:24px; width:96vw}
@@ -116,10 +116,6 @@
 </head>
 <body>
   <div class="stage">
-    <div class="bg-wrap">
-      <img id="bg" class="bg-img" alt="" />
-      <div class="vignette"></div>
-    </div>
 
     <div class="panel">
       <div class="left">
@@ -183,7 +179,7 @@
   async function beginLogin(){
     const clientId = store.get("client_id"); const redirectUri = store.get("redirect_uri") || (location.origin + location.pathname);
     if(!clientId){ toast("Enter Client ID in settings (press 's')."); openDrawer(); return; }
-    const state = rand(16); const verifier = rand(64);
+    const state = Math.random().toString(36).slice(2,10); const verifier = Array.from(crypto.getRandomValues(new Uint8Array(32))).map(b=>b.toString(16).padStart(2,"0")).join("");
     const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
     const challenge=b64url(digest);
     store.set("code_verifier",verifier); store.set("oauth_state",state);
@@ -233,7 +229,7 @@
   }
 
   // Render & overlays
-  const art=$("#art"), bg=$("#bg"), titleEl=$("#title"), artistsEl=$("#artists");
+  const art=$("#art"), titleEl=$("#title"), artistsEl=$("#artists");
   const bar=$("#bar");
   const blackout=$("#blackout"), neterr=$("#neterr");
   function setBlackout(on){ blackout.style.display = on ? "block" : "none"; }
@@ -259,7 +255,7 @@
   function renderNothing(){
     titleEl.textContent="Nothing playing";
     artistsEl.textContent="—";
-    art.src=""; bg.src="";
+    art.src="";
     fitAll();
     showNetErr(false);
     setBlackout(true); // blank the screen when nothing is playing
@@ -272,7 +268,7 @@
     titleEl.textContent=t.name||"—";
     artistsEl.textContent=(t.artists||[]).map(a=>a.name).join(", ")||"—";
     const img=(t.album&&t.album.images&&t.album.images[0]&&t.album.images[0].url)||"";
-    if(img){ art.src=img; if(bg.src!==img) bg.src=img; }
+    if(img){ art.src=img; }
     const dur=t.duration_ms||0, pos=d.progress_ms||0;
     lastDurMs=dur; lastPosMs=pos; lastIsPlaying=!!d.is_playing;
     fitAll();
@@ -313,8 +309,8 @@
     }
   }
   function fitAll(){
-    fitElement(titleEl, 3, 32);
-    fitElement(artistsEl, 2, 26);
+    fitElement(titleEl, 3, 34);
+    fitElement(artistsEl, 2, 28);
   }
   window.addEventListener("resize", () => { fitAll(); });
 
