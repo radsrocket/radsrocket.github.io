@@ -73,11 +73,11 @@
       word-break:break-word;
     }
 
-    /* Progress bar: thinner, with solid light grey remainder */
+    /* Progress bar: thin, darker grey remainder for contrast */
     .progress{
       width:100%; height:18px; border-radius:999px;
       border:1px solid rgba(255,255,255,.18);
-      background:#606a78; /* solid light grey remainder */
+      background:#606a78; /* darker grey remainder */
       overflow:hidden
     }
     .bar{
@@ -95,19 +95,47 @@
     .clamp.artists-2{-webkit-line-clamp:2}
 
     /* Gear + settings drawer */
-    .gear{position:fixed; right:16px; bottom:16px; width:48px; height:48px; border-radius:14px; display:grid; place-items:center; border:1px solid rgba(255,255,255,.18);
-      background:rgba(255,255,255,.06); color:var(--fg); cursor:pointer; z-index:6}
+    .gear{position:fixed; right:16px; bottom:16px; width:54px; height:54px; border-radius:16px; display:grid; place-items:center; border:1px solid rgba(255,255,255,.18);
+      background:rgba(255,255,255,.08); color:var(--fg); cursor:pointer; z-index:6; font-size:22px}
     .gear.hidden{display:none}
-    .drawer{position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:7; background:rgba(0,0,0,.7)}
+
+    .drawer{position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:7; background:rgba(0,0,0,.72);}
     .drawer.open{display:flex}
-    .sheet{width:min(760px,92vw); background:#0b0b0b; border:1px solid rgba(255,255,255,.12); border-radius:18px; padding:22px; color:var(--fg); box-shadow:0 20px 60px rgba(0,0,0,.7)}
-    .row{display:grid; grid-template-columns:160px 1fr; gap:12px; align-items:center; margin:10px 0}
-    label{opacity:.85}
-    input{width:100%; padding:.8rem .9rem; border-radius:12px; border:1px solid rgba(255,255,255,.15); background:#0e1118; color:var(--fg); font-size:16px}
-    .btns{display:flex; gap:12px; justify-content:flex-end; margin-top:14px}
-    .btn{appearance:none; border:1px solid rgba(255,255,255,.18); background:#121621; color:var(--fg); padding:.7rem 1.1rem; border-radius:12px; font-weight:700; cursor:pointer}
+
+    .sheet{
+      width:min(920px,96vw); max-height:92vh; overflow:auto;
+      background:#0b0b0b; border:1px solid rgba(255,255,255,.14);
+      border-radius:22px; padding:28px;
+      color:var(--fg); box-shadow:0 24px 80px rgba(0,0,0,.75);
+      font-size:18px;
+    }
+    .sheet h2{font-size:28px; margin:0 0 4px}
+    .sheet p.lead{margin:0 0 18px; color:#c0c7d2}
+
+    /* Inputs: larger, stacked layout for readability */
+    .row{display:grid; grid-template-columns:1fr; gap:8px; margin:16px 0}
+    .row label{opacity:.9; font-weight:600}
+    input{
+      width:100%; padding:1rem 1rem; border-radius:14px;
+      border:1px solid rgba(255,255,255,.18); background:#101318; color:var(--fg); font-size:18px
+    }
+    input:focus{outline:2px solid #3b82f6; outline-offset:2px}
+
+    .hint{color:#9aa6b6; font-size:14px; margin-top:6px}
+    .error{color:#ffb4b4; font-size:14px; display:none; margin-top:6px}
+
+    .btns{display:flex; flex-wrap:wrap; gap:12px; justify-content:flex-end; margin-top:16px}
+    .btn{appearance:none; border:1px solid rgba(255,255,255,.2); background:#171b23; color:var(--fg);
+      padding:0.9rem 1.2rem; border-radius:14px; font-weight:700; cursor:pointer; font-size:16px}
     .btn.primary{background:var(--accent); border-color:transparent; color:#052d16}
-    .toast{position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:#0e1118; border:1px solid rgba(255,255,255,.12); color:var(--fg); padding:.6rem .8rem; border-radius:12px; box-shadow:0 20px 60px rgba(0,0,0,.7); display:none; z-index:8}
+    .btn:disabled{opacity:.6; cursor:not-allowed}
+
+    /* Mobile: full-screen sheet and full-width buttons */
+    @media (max-width: 640px){
+      .sheet{width:100vw; height:100vh; max-height:100vh; border-radius:0; padding:24px}
+      .btns{justify-content:stretch}
+      .btn{flex:1 1 100%}
+    }
 
     @media (max-width: 1100px){
       .panel{grid-template-columns:1fr; gap:24px; width:96vw}
@@ -135,23 +163,32 @@
 
     <div class="drawer" id="drawer">
       <div class="sheet">
-        <h2 style="margin:0 0 8px 0;">Nowify Settings</h2>
-        <p style="margin:0 0 14px 0; color:#b1b8c8">Enter your Spotify Client ID and confirm the Redirect URI.</p>
+        <h2>Nowify Settings</h2>
+        <p class="lead">Enter your Spotify Client ID and confirm the Redirect URI.</p>
+
         <div class="row">
           <label for="clientId">Client ID</label>
-          <input id="clientId" placeholder="Spotify Client ID" />
+          <input id="clientId" placeholder="Spotify Client ID" inputmode="text" autocomplete="off" />
+          <div class="hint">From <em>Spotify Developer Dashboard → Your App → Client ID</em>.</div>
+          <div class="error" id="clientIdErr">Please enter your Client ID.</div>
         </div>
+
         <div class="row">
           <label for="redirectUri">Redirect URI</label>
-          <input id="redirectUri" placeholder="https://USERNAME.github.io/REPO/" />
+          <input id="redirectUri" placeholder="https://USERNAME.github.io/REPO/" inputmode="url" />
+          <div class="hint">Must exactly match the Redirect URI you added in Spotify app settings.</div>
+          <div class="error" id="redirectErr">Please enter a valid Redirect URI (https://…).</div>
         </div>
+
         <div class="btns">
+          <button class="btn" id="copyUrlBtn" title="Use current page as Redirect URI">Use this page URL</button>
           <button class="btn" id="clearBtn">Clear data</button>
           <button class="btn" id="logoutBtn">Log out</button>
           <button class="btn primary" id="loginBtn">Log in with Spotify</button>
           <button class="btn" id="closeBtn">Close</button>
         </div>
-        <p style="margin:12px 0 0 0; color:#9aa6b6; font-size:14px;">Tip: Press <b>s</b> anytime to open this panel. Tokens are stored only in this browser.</p>
+
+        <p class="hint">Tip: Press <b>s</b> anytime to open this panel. Tokens are stored only in this browser.</p>
       </div>
     </div>
 
@@ -164,9 +201,14 @@
   <script>
   // Utilities
   const $ = s => document.querySelector(s);
-  const b64url = arr => btoa(String.fromCharCode(...new Uint8Array(arr))).replace(/\\+/g,"-").replace(/\\//g,"_").replace(/=+$/,"");
-  const rand = (len=64) => { const c="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~"; let s=""; for(let i=0;i<len;i++) s+=c[Math.floor(Math.random()*c.length)]; return s; };
-  const toast=(m)=>{const t=$("#toast"); t.textContent=m; t.style.display="block"; setTimeout(()=>t.style.display="none",2400);};
+  const b64url = arr => btoa(String.fromCharCode(...new Uint8Array(arr))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+  const randVer = () => {
+    // RFC 7636 allowed chars: ALPHA / DIGIT / "-" / "." / "_" / "~"
+    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~";
+    const a = new Uint8Array(64); crypto.getRandomValues(a);
+    return Array.from(a, b => chars[b % chars.length]).join("");
+  };
+  const toast=(m)=>{const t=$("#toast"); t.textContent=m; t.style.display="block"; setTimeout(()=>t.style.display="none",2600);};
 
   const POLL_MS = 5000;
 
@@ -178,21 +220,44 @@
   // OAuth (PKCE)
   const SCOPES=[ "user-read-email","user-read-private","user-read-currently-playing","user-read-playback-state" ].join(" ");
   async function beginLogin(){
-    const clientId = store.get("client_id"); const redirectUri = store.get("redirect_uri") || (location.origin + location.pathname);
-    if(!clientId){ toast("Enter Client ID in settings (press 's')."); openDrawer(); return; }
-    const state = Math.random().toString(36).slice(2,10); const verifier = Array.from(crypto.getRandomValues(new Uint8Array(32))).map(b=>b.toString(16).padStart(2,"0")).join("");
+    // Always persist current field values first
+    const cid = $("#clientId").value.trim();
+    const rid = $("#redirectUri").value.trim() || (location.origin + location.pathname);
+    store.set("client_id", cid);
+    store.set("redirect_uri", rid);
+
+    // Validate
+    let ok = true;
+    $("#clientIdErr").style.display = cid ? "none" : "block";
+    try{ const u = new URL(rid); if(u.protocol !== "https:" && u.protocol !== "http:") ok=false; }catch{ ok=false; }
+    $("#redirectErr").style.display = ok ? "none" : "block";
+    if(!cid || !ok){ toast("Please fix the highlighted fields."); return; }
+
+    if(!("crypto" in window) || !("subtle" in crypto)){
+      toast("This browser doesn't support PKCE (WebCrypto). Try updating Chromium.");
+      return;
+    }
+    const loginBtn = $("#loginBtn");
+    loginBtn.disabled = true; const prev=loginBtn.textContent; loginBtn.textContent="Opening Spotify…";
+
+    const state = randVer();
+    const verifier = randVer();
     const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
     const challenge=b64url(digest);
     store.set("code_verifier",verifier); store.set("oauth_state",state);
+
     const url=new URL("https://accounts.spotify.com/authorize");
     url.searchParams.set("response_type","code");
-    url.searchParams.set("client_id",clientId);
+    url.searchParams.set("client_id",cid);
     url.searchParams.set("scope",SCOPES);
-    url.searchParams.set("redirect_uri",redirectUri);
+    url.searchParams.set("redirect_uri",rid);
     url.searchParams.set("state",state);
     url.searchParams.set("code_challenge_method","S256");
     url.searchParams.set("code_challenge",challenge);
+    // Redirect
     location.href=url.toString();
+    // In case navigation is blocked (shouldn't be), re-enable after a moment
+    setTimeout(()=>{ try{ loginBtn.disabled=false; loginBtn.textContent=prev; }catch{} }, 4000);
   }
   async function exchangeCodeForToken(code){
     const clientId=store.get("client_id"); const redirectUri=store.get("redirect_uri") || (location.origin + location.pathname);
@@ -238,20 +303,19 @@
 
   // Smooth progress animation between polls
   let lastPosMs=null, lastDurMs=null, lastIsPlaying=false;
-  function animateProgress(posMs, durMs, isPlaying, horizonMs=POLL_MS){
+  const animateProgress=(posMs, durMs, isPlaying, horizonMs=POLL_MS)=>{
     if(!durMs || durMs<=0){ bar.style.transition="none"; bar.style.width="0%"; return; }
     const startPct = Math.max(0, Math.min(100, (posMs/durMs)*100));
     bar.style.transition = "none";
     bar.style.width = startPct + "%";
-    // force reflow
-    void bar.offsetWidth;
+    void bar.offsetWidth; // reflow
     if(isPlaying){
       const dt = Math.min(horizonMs, Math.max(0, durMs - posMs));
       const endPct = Math.max(0, Math.min(100, ((posMs + dt)/durMs)*100));
       bar.style.transition = `width ${dt/1000}s linear`;
       bar.style.width = endPct + "%";
     }
-  }
+  };
 
   function renderNothing(){
     titleEl.textContent="Nothing playing";
@@ -279,12 +343,12 @@
   }
 
   // Text fitting: shrink first, clamp as last resort
-  function lineHeightPx(el, fs){
+  const lineHeightPx=(el, fs)=>{
     const st=getComputedStyle(el);
     let lh = parseFloat(st.lineHeight);
     if(Number.isNaN(lh) || st.lineHeight === "normal") lh = 1.1 * fs; // approximate
     return lh;
-  }
+  };
   function fitElement(el, maxLines, minPx){
     el.classList.remove("clamp","title-2","title-3","artists-1","artists-2");
     el.style.fontSize = ""; // reset
@@ -356,12 +420,16 @@
   $("#logoutBtn").onclick=()=>{ logout(); renderNothing(); toast("Logged out"); openDrawer(); };
   $("#closeBtn").onclick=closeDrawer;
   $("#clearBtn").onclick=()=>{ store.clear(); toast("Cleared stored data"); location.reload(); };
-  gear.onclick=openDrawer;
-  document.addEventListener("keydown",(e)=>{ if(e.key.toLowerCase()==="s") openDrawer(); });
+  $("#copyUrlBtn").onclick=()=>{ $("#redirectUri").value = location.origin + location.pathname; saveSettings(); toast("Copied current page as Redirect URI"); };
 
-  const saveSettings=()=>{ store.set("client_id", $("#clientId").value.trim()); store.set("redirect_uri", $("#redirectUri").value.trim()); toast("Settings saved"); };
-  $("#clientId").addEventListener("change", saveSettings);
-  $("#redirectUri").addEventListener("change", saveSettings);
+  function saveSettings(){ store.set("client_id", $("#clientId").value.trim()); store.set("redirect_uri", $("#redirectUri").value.trim()); }
+  $("#clientId").addEventListener("input", saveSettings);
+  $("#redirectUri").addEventListener("input", saveSettings);
+  gear.onclick=openDrawer;
+  document.addEventListener("keydown",(e)=>{
+    if(e.key.toLowerCase()==="s") openDrawer();
+    if(e.key==="Enter" && $("#drawer").classList.contains("open")){ e.preventDefault(); beginLogin(); }
+  });
 
   // Wake Lock
   let wl=null;
