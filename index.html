@@ -21,7 +21,6 @@
     .vignette{position:absolute;inset:0;pointer-events:none;background:
       radial-gradient(1400px 1200px at 50% 30%, rgba(255,255,255,.12), transparent 45%),
       linear-gradient(180deg, rgba(0,0,0,.55), rgba(0,0,0,.7)); box-shadow:var(--glow)}
-    .status{position:fixed; top:16px; left:16px; font-size:14px; color:#b1b8c8; opacity:.85; z-index:3}
 
     /* Full-screen blackout overlay for paused / nothing playing */
     .blackout{position:fixed; inset:0; background:#000; display:none; z-index:5}
@@ -51,7 +50,13 @@
       gap:var(--gap); align-items:center;
       width:min(94vw, 1920px); padding:calc(var(--gap) * 0.5);
     }
-    .left, .right{display:grid; align-content:center; gap:2.2vmin; min-width:0}
+    .left{display:grid; align-content:center; gap:2.4vmin; min-width:0}
+    .right{
+      display:grid;
+      align-content:center;
+      gap:3.2vmin; /* more breathing room */
+      min-width:0;
+    }
     .art{
       width:100%;
       aspect-ratio:1/1;
@@ -61,7 +66,7 @@
     }
     .title{
       font-weight:800; letter-spacing:.2px;
-      font-size:clamp(36px, 7.2vmin, 100px); /* base; will be adjusted by JS */
+      font-size:clamp(36px, 7.4vmin, 104px); /* a bit larger by default */
       line-height:1.08;
       text-shadow:0 3px 12px rgba(0,0,0,.6);
       max-width:100%;
@@ -70,17 +75,16 @@
     }
     .artists{
       color:#c7cfdb;
-      font-size:clamp(24px, 5.5vmin, 80px);
+      font-size:clamp(24px, 5.7vmin, 84px); /* a bit larger */
       line-height:1.1;
       max-width:100%;
       overflow:visible;
       word-break:break-word;
     }
 
-    .progress{width:100%; height:20px; border-radius:999px; border:1px solid rgba(255,255,255,.18); background:rgba(0,0,0,.35); overflow:hidden}
-    .bar{height:100%; width:0%; background:linear-gradient(90deg, rgba(255,255,255,.98), rgba(255,255,255,.45)); transition:width .5s ease}
-    .times{display:flex; width:100%; justify-content:space-between; color:#c0c7d2;
-           font-feature-settings:"tnum" 1; font-variant-numeric:tabular-nums; margin-top:10px; font-size:clamp(16px,2.6vmin,28px)}
+    .progress{width:100%; height:22px; border-radius:999px; border:1px solid rgba(255,255,255,.18); background:rgba(0,0,0,.35); overflow:hidden}
+    .bar{height:100%; width:0%}
+    /* We'll set linear transitions dynamically for smooth movement */
 
     /* Optional last-resort clamping (added only if needed by JS) */
     .clamp{display:-webkit-box; -webkit-box-orient:vertical; overflow:hidden}
@@ -117,8 +121,6 @@
       <div class="vignette"></div>
     </div>
 
-    <div class="status" id="status">Idle</div>
-
     <div class="panel">
       <div class="left">
         <img id="art" class="art" alt="Album art" />
@@ -128,7 +130,6 @@
         <div class="artists" id="artists">—</div>
         <div>
           <div class="progress"><div class="bar" id="bar"></div></div>
-          <div class="times"><div id="elapsed">0:00</div><div id="duration">0:00</div></div>
         </div>
       </div>
     </div>
@@ -166,10 +167,11 @@
   <script>
   // Utilities
   const $ = s => document.querySelector(s);
-  const fmtTime = ms => { if(!Number.isFinite(ms)||ms<0) ms=0; const s=Math.floor(ms/1000),m=Math.floor(s/60),r=s%60; return m+":"+String(r).padStart(2,"0"); };
   const b64url = arr => btoa(String.fromCharCode(...new Uint8Array(arr))).replace(/\\+/g,"-").replace(/\\//g,"_").replace(/=+$/,"");
   const rand = (len=64) => { const c="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~"; let s=""; for(let i=0;i<len;i++) s+=c[Math.floor(Math.random()*c.length)]; return s; };
   const toast=(m)=>{const t=$("#toast"); t.textContent=m; t.style.display="block"; setTimeout(()=>t.style.display="none",2400);};
+
+  const POLL_MS = 5000;
 
   // Storage
   const store={ get k(){return JSON.parse(localStorage.getItem("nowify_cfg")||"{}")},
@@ -216,7 +218,7 @@
     if(d.refresh_token) store.set("refresh_token", d.refresh_token);
     else if(keep){/* keep old refresh token */}
   }
-  function logout(){ store.set("access_token",null); store.set("refresh_token",null); store.set("expires_at",0); updateStatus("Logged out"); }
+  function logout(){ store.set("access_token",null); store.set("refresh_token",null); store.set("expires_at",0); }
 
   // API
   async function api(path){
@@ -232,20 +234,37 @@
 
   // Render & overlays
   const art=$("#art"), bg=$("#bg"), titleEl=$("#title"), artistsEl=$("#artists");
-  const bar=$("#bar"), elapsedEl=$("#elapsed"), durationEl=$("#duration");
+  const bar=$("#bar");
   const blackout=$("#blackout"), neterr=$("#neterr");
-  function updateStatus(s){ $("#status").textContent=s; }
   function setBlackout(on){ blackout.style.display = on ? "block" : "none"; }
   function showNetErr(on){ neterr.style.display = on ? "grid" : "none"; }
+
+  // Smooth progress animation between polls
+  let lastPosMs=null, lastDurMs=null, lastIsPlaying=false;
+  function animateProgress(posMs, durMs, isPlaying, horizonMs=POLL_MS){
+    if(!durMs || durMs<=0){ bar.style.transition="none"; bar.style.width="0%"; return; }
+    const startPct = Math.max(0, Math.min(100, (posMs/durMs)*100));
+    bar.style.transition = "none";
+    bar.style.width = startPct + "%";
+    // force reflow
+    void bar.offsetWidth;
+    if(isPlaying){
+      const dt = Math.min(horizonMs, Math.max(0, durMs - posMs));
+      const endPct = Math.max(0, Math.min(100, ((posMs + dt)/durMs)*100));
+      bar.style.transition = `width ${dt/1000}s linear`;
+      bar.style.width = endPct + "%";
+    }
+  }
 
   function renderNothing(){
     titleEl.textContent="Nothing playing";
     artistsEl.textContent="—";
-    elapsedEl.textContent="0:00"; durationEl.textContent="0:00"; bar.style.width="0%";
     art.src=""; bg.src="";
     fitAll();
     showNetErr(false);
     setBlackout(true); // blank the screen when nothing is playing
+    lastPosMs=null; lastDurMs=null; lastIsPlaying=false;
+    animateProgress(0, 0, false);
   }
   function renderPlayback(d){
     if(!d || !d.item){ renderNothing(); return; }
@@ -255,12 +274,11 @@
     const img=(t.album&&t.album.images&&t.album.images[0]&&t.album.images[0].url)||"";
     if(img){ art.src=img; if(bg.src!==img) bg.src=img; }
     const dur=t.duration_ms||0, pos=d.progress_ms||0;
-    durationEl.textContent=fmtTime(dur); elapsedEl.textContent=fmtTime(pos);
-    bar.style.width = dur ? (pos/dur*100).toFixed(2)+"%" : "0%";
+    lastDurMs=dur; lastPosMs=pos; lastIsPlaying=!!d.is_playing;
     fitAll();
-    // If playback is paused, blackout; else clear overlays
     setBlackout(!d.is_playing);
     showNetErr(false);
+    animateProgress(pos, dur, d.is_playing, POLL_MS);
   }
 
   // Text fitting: shrink first, clamp as last resort
@@ -305,27 +323,32 @@
   const ERROR_THRESHOLD = 3; // show network error after 3 failed polls (~15s)
   async function tick(){
     try{
-      updateStatus("Polling…");
       const headers={}; if(lastETag) headers["If-None-Match"]=lastETag;
-      let at=store.get("access_token"); if(!at){ updateStatus("Not authenticated"); showNetErr(false); setBlackout(false); return; }
+      let at=store.get("access_token"); if(!at){ showNetErr(false); setBlackout(false); return; }
       const res=await fetch("https://api.spotify.com/v1/me/player/currently-playing",{headers:{Authorization:`Bearer ${at}`,...headers}});
       if(res.status===401){ await refreshToken(); return; }
-      if(res.status===204){ consecutiveErrors=0; showNetErr(false); renderNothing(); updateStatus("No content"); return; }
-      if(res.status===304){ consecutiveErrors=0; showNetErr(false); updateStatus("Unchanged"); return; }
+      if(res.status===204){ consecutiveErrors=0; showNetErr(false); renderNothing(); return; }
+      if(res.status===304){
+        consecutiveErrors=0; showNetErr(false);
+        // keep progress moving another horizon
+        if(lastDurMs!=null && lastPosMs!=null && lastIsPlaying){
+          lastPosMs = Math.min(lastPosMs + POLL_MS, lastDurMs);
+          animateProgress(lastPosMs, lastDurMs, true, POLL_MS);
+        }
+        return;
+      }
       if(!res.ok) throw new Error("Status "+res.status);
       lastETag = res.headers.get("ETag") || lastETag;
       const data=await res.json(); renderPlayback(data);
-      updateStatus(data && data.is_playing ? "Playing" : "Paused");
       consecutiveErrors=0; showNetErr(false);
     }catch(e){
       consecutiveErrors++;
-      updateStatus("Error");
       // On error, do NOT blackout; after threshold, show subtle network message
       if(consecutiveErrors >= ERROR_THRESHOLD){ setBlackout(false); showNetErr(true); }
       console.error(e);
     }
   }
-  function start(){ if(timer) clearInterval(timer); tick(); timer=setInterval(tick, 5000); }
+  function start(){ if(timer) clearInterval(timer); tick(); timer=setInterval(tick, POLL_MS); }
   async function whoami(){ try{ await api("/me"); }catch{} }
 
   // Settings Drawer
@@ -357,7 +380,6 @@
       try{
         const code=params.get("code"); const state=params.get("state");
         if(state !== store.get("oauth_state")) throw new Error("State mismatch");
-        updateStatus("Completing login…");
         await exchangeCodeForToken(code);
         history.replaceState({}, "", store.get("redirect_uri") || (location.origin + location.pathname));
         toast("Logged in");
@@ -372,7 +394,6 @@
     }else{
       // Not authenticated: don't blackout (so you can see settings)
       setBlackout(false); showNetErr(false);
-      updateStatus("Not authenticated");
       openDrawer();
     }
   })();
