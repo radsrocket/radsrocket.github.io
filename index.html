@@ -138,6 +138,16 @@
         </div>
       </div>
 
+      <div class="row">
+        <div>
+          <label>Blackout screen when nothing is playing</label>
+          <select id="blackoutPaused">
+            <option value="false">Show paused screen</option>
+            <option value="true">Blackout</option>
+          </select>
+        </div>
+      </div>
+
       <div style="display:flex; gap:10px; justify-content:flex-end; margin-top: 6px;">
         <button id="save">Save</button>
         <button id="close" class="secondary">Close</button>
@@ -160,6 +170,7 @@
       },
       preferred: 'A',
       pollingMs: 2500,
+      blackoutPaused: false,
     };
 
     let cfg = loadCfg();
@@ -192,6 +203,7 @@
     const bLogout = document.getElementById('bLogout');
     const prefer = document.getElementById('prefer');
     const pollMs = document.getElementById('pollMs');
+    const blackoutPausedSel = document.getElementById('blackoutPaused');
     const saveBtn = document.getElementById('save');
 
     // ===== OAuth (PKCE) helpers =====
@@ -333,13 +345,13 @@
     function msToClock(ms){ if(!ms && ms!==0) return '0:00'; const s=Math.floor(ms/1000), m=Math.floor(s/60), r=(s%60).toString().padStart(2,'0'); return `${m}:${r}`; }
 
     function renderNothing(){
-      titleEl.textContent = 'Paused';
-      artistEl.textContent = '—';
+      titleEl.textContent = 'Nothing playing';
+      artistEl.textContent = "Press 's' to connect accounts or start playback.";
       artImg.removeAttribute('src');
       fillEl.style.width = '0%';
       timeText.textContent = '0:00 / 0:00';
-      acctLabel.textContent = 'No account';
-      blackout.classList.add('show');
+      acctLabel.textContent = '—';
+      if (cfg.blackoutPaused) { blackout.classList.add('show'); } else { blackout.classList.remove('show'); }
     }
 
     function renderPlayback(which, payload){
@@ -412,6 +424,7 @@
       redirectUri.value = cfg.redirectUri || (location.origin+location.pathname);
       prefer.value = cfg.preferred || 'A';
       pollMs.value = String(cfg.pollingMs || 2500);
+      blackoutPausedSel.value = String(!!cfg.blackoutPaused);
       updateSettingsUI();
     }
 
@@ -426,6 +439,7 @@
       cfg.redirectUri = redirectUri.value.trim() || (location.origin+location.pathname);
       cfg.preferred = (prefer.value === 'B') ? 'B' : 'A';
       const n = parseInt(pollMs.value, 10); if(!Number.isNaN(n) && n>500) cfg.pollingMs = n;
+      cfg.blackoutPaused = (blackoutPausedSel.value === 'true');
       saveCfg();
       closeSettings();
     });
@@ -453,6 +467,11 @@
 
       // Initial paint
       renderNothing(); fillSettings();
+
+      // If nothing configured yet, open settings to guide setup
+      if(!(cfg.accounts.A.tokens || cfg.accounts.B.tokens) || !cfg.clientId){
+        openSettings();
+      }
 
       // Start polling loop
       async function loop(){ await poll(); setTimeout(loop, cfg.pollingMs); }
