@@ -166,10 +166,12 @@
       redirectUri: location.origin + location.pathname,
       accounts: {
         A: { label: 'Account A', tokens: null, profile: null, lastAuth: 0 },
-        B: { label: 'Account B', tokens: null, profile: null, lastAuth: 0 }},
+        B: { label: 'Account B', tokens: null, profile: null, lastAuth: 0 },
+      },
       preferred: 'A',
       pollingMs: 2500,
-      blackoutPaused: false};
+      blackoutPaused: false,
+    };
 
     let cfg = loadCfg();
     function loadCfg(){
@@ -207,7 +209,7 @@
     // ===== OAuth (PKCE) helpers =====
     const SPOTIFY_AUTH = 'https://accounts.spotify.com/authorize';
     const SPOTIFY_TOKEN = 'https://accounts.spotify.com/api/token';
-    const SCOPES = 'user-read-currently-playing user-read-playback-state user-read-private user-read-email';
+    const SCOPES = 'user-read-currently-playing user-read-playback-state';
 
     async function sha256(str){ const enc = new TextEncoder().encode(str); const buf = await crypto.subtle.digest('SHA-256', enc); return new Uint8Array(buf); }
     function base64url(bytes){ let s = btoa(String.fromCharCode(...bytes)); return s.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
@@ -228,7 +230,8 @@
         code_challenge: challenge,
         scope: SCOPES,
         state,
-        show_dialog: 'true'}).toString();
+        show_dialog: 'true',
+      }).toString();
       location.assign(url.toString());
     }
 
@@ -247,7 +250,8 @@
           client_id: cfg.clientId,
           grant_type: 'authorization_code',
           code, redirect_uri: cfg.redirectUri,
-          code_verifier: verifier});
+          code_verifier: verifier,
+        });
         const r = await fetch(SPOTIFY_TOKEN, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
         if(!r.ok){ throw new Error('Token exchange failed'); }
         const tok = await r.json();
@@ -255,7 +259,8 @@
         cfg.accounts[which].tokens = {
           access_token: tok.access_token,
           refresh_token: tok.refresh_token,
-          expires_at: now + (tok.expires_in*1000 - 15000)};
+          expires_at: now + (tok.expires_in*1000 - 15_000),
+        };
         cfg.accounts[which].lastAuth = now;
         saveCfg();
         await loadProfile(which);
@@ -273,13 +278,14 @@
         const body = new URLSearchParams({
           client_id: cfg.clientId,
           grant_type: 'refresh_token',
-          refresh_token: t.refresh_token});
+          refresh_token: t.refresh_token,
+        });
         const r = await fetch(SPOTIFY_TOKEN, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
         if(!r.ok){ throw new Error('Refresh failed'); }
         const tok = await r.json();
         t.access_token = tok.access_token;
         if(tok.refresh_token) t.refresh_token = tok.refresh_token; // sometimes new one provided
-        t.expires_at = Date.now() + (tok.expires_in*1000 - 15000);
+        t.expires_at = Date.now() + (tok.expires_in*1000 - 15_000);
         saveCfg();
         return true;
       }catch(err){ console.warn('Refresh failed', which, err); return false; }
@@ -301,19 +307,7 @@
     async function loadProfile(which){
       try{
         const me = await withToken(which, (t)=>apiGet(t, 'https://api.spotify.com/v1/me'));
-        cfg.accounts[which].profile = { id: me.id, name: me.display_name || me.id || 'User' };
-        saveCfg();
-        updateSettingsUI();
-      }catch(err){
-        console.warn('Profile load failed', which, err);
-        // Still mark as connected if tokens exist; profile scopes might be missing
-        if (cfg.accounts[which].tokens) {
-          cfg.accounts[which].profile = cfg.accounts[which].profile || { id: 'unknown', name: 'Connected (no profile scope)' };
-          saveCfg();
-          updateSettingsUI();
-        }
-      }
-    };
+        cfg.accounts[which].profile = { id: me.id, name: me.display_name || me.id };
         saveCfg();
         updateSettingsUI();
       }catch(err){ console.warn('Profile load failed', which, err); }
@@ -435,15 +429,8 @@
     }
 
     function updateSettingsUI(){
-      var hasATok = !!(cfg && cfg.accounts && cfg.accounts.A && cfg.accounts.A.tokens);
-      var hasBTok = !!(cfg && cfg.accounts && cfg.accounts.B && cfg.accounts.B.tokens);
-      var pa = (cfg && cfg.accounts && cfg.accounts.A) ? cfg.accounts.A.profile : null;
-      var pb = (cfg && cfg.accounts && cfg.accounts.B) ? cfg.accounts.B.profile : null;
-      aStatus.textContent = pa ? ('Connected as ' + (pa.name || 'User')) : (hasATok ? 'Connected (profile scope missing)' : 'Not connected');
-      bStatus.textContent = pb ? ('Connected as ' + (pb.name || 'User')) : (hasBTok ? 'Connected (profile scope missing)' : 'Not connected');
-    }` : (hasATok ? 'Connected (profile scope missing)' : 'Not connected');
-      bStatus.textContent = pb ? `Connected as ${pb.name}` : (hasBTok ? 'Connected (profile scope missing)' : 'Not connected');
-    }` : 'Not connected';
+      const pa = cfg.accounts.A.profile; const pb = cfg.accounts.B.profile;
+      aStatus.textContent = pa ? `Connected as ${pa.name}` : 'Not connected';
       bStatus.textContent = pb ? `Connected as ${pb.name}` : 'Not connected';
     }
 
