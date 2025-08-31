@@ -3,448 +3,461 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Nowify — Kiosk</title>
+  <title>Nowify — Dual Account</title>
   <style>
-    :root{
-      --fg:#f6f8fb;
-      --muted:#9aa6b2;
-      --accent:#1db954;
-      --shadow: 0 40px 80px rgba(0,0,0,.6);
-      --gap: 3.2vw; /* keep center gap */
+    :root {
+      --bg: #000;
+      --fg: #fff;
+      --muted: #bdbdbd;
+      --accent: #1db954; /* Spotify-ish */
+      --error: #ff4d4f;
+      --progress-h: 18px;
+      --gutter: 4vmin;
     }
-    *{box-sizing:border-box}
-    html,body{height:100%;margin:0;background:#000;color:var(--fg);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial,sans-serif;overflow:hidden;cursor:none}
-    
-    /* Stage fills screen; no extra margins */
-    .stage{position:fixed;inset:0;display:block}
+    html, body { height: 100%; margin: 0; background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; }
+    .root { display: grid; grid-template-columns: minmax(280px, 40%) 1fr; gap: var(--gutter); height: 100%; align-items: center; padding: var(--gutter); box-sizing: border-box; }
+    .art { width: 100%; aspect-ratio: 1/1; background: #111; border-radius: 2vmin; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,.6); }
+    .art img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
-    /* Blackout when paused / nothing */
-    .blackout{position:fixed; inset:0; background:#000; display:none; z-index:5}
+    .meta { display: grid; grid-template-rows: 1fr auto; gap: 2vmin; min-width: 0; }
+    .titles { min-width: 0; }
+    .title { font-size: clamp(24px, 8vmin, 64px); font-weight: 800; line-height: 1.05; margin: 0 0 .6rem 0; word-break: break-word; }
+    .artist { font-size: clamp(16px, 4.2vmin, 32px); color: var(--muted); margin: 0; white-space: pre-wrap; word-break: break-word; }
 
-    /* Centered network error overlay */
-    .neterr{
-      position:fixed; inset:0; display:none; z-index:5;
-      pointer-events:none; display:grid; place-items:center;
-    }
-    .neterr .bubble{
-      color:var(--muted);
-      font-size:clamp(18px, 3.2vmin, 28px);
-      background:rgba(255,255,255,0.06);
-      padding:1rem 1.25rem;
-      border-radius:14px;
-      border:1px solid rgba(255,255,255,0.12);
-      text-align:center;
-    }
+    .bar { position: relative; height: var(--progress-h); background: #2a2a2a; border-radius: 999px; overflow: hidden; box-shadow: inset 0 1px 0 rgba(255,255,255,.06); }
+    .bar-fill { position: absolute; inset: 0; width: 0%; background: var(--fg); transition: width .4s linear; }
 
-    /* Edge-to-edge panel with only center gap preserved */
-    .panel{
-      position:relative; z-index:2;
-      display:grid;
-      grid-template-columns: minmax(780px, 85vmin) minmax(680px, 1fr); /* bigger art + wide text column */
-      gap:clamp(16px, var(--gap), 64px);
-      align-items:center;
-      width:100vw; height:100vh; padding:0; margin:0;
-    }
-    .left{display:grid; align-content:center; min-width:0}
-    .right{
-      display:grid; align-content:center;
-      gap:clamp(10px, 2.4vmin, 28px);
-      min-width:0;
-    }
-    .art{
-      width:100%; height:auto;
-      aspect-ratio:1/1;
-      border-radius:0;
-      object-fit:cover;
-      box-shadow:var(--shadow);
-      border:0; /* no border to maximize size */
-      background:#0b0f14;
-    }
+    .footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; opacity: .9; font-size: 14px; }
+    .account-pill { display: inline-flex; align-items: center; gap: .5rem; padding: .3rem .6rem; border-radius: 999px; background: rgba(255,255,255,.1); }
+    .account-dot { width: .6rem; height: .6rem; border-radius: 999px; background: var(--accent); }
 
-    /* Larger typography; fit down if needed */
-    .title{
-      font-weight:800; letter-spacing:.2px;
-      font-size:clamp(52px, 11.5vmin, 156px);
-      line-height:1.04;
-      max-width:100%;
-      overflow:visible;
-      word-break:break-word;
-    }
-    .artists{
-      color:#c7cfdb;
-      font-size:clamp(38px, 9.2vmin, 120px);
-      line-height:1.04;
-      max-width:100%;
-      overflow:visible;
-      word-break:break-word;
-    }
+    .gear { position: fixed; top: .9rem; right: .9rem; width: 36px; height: 36px; border-radius: 999px; display: grid; place-items: center; cursor: pointer; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.18); backdrop-filter: blur(6px); }
+    .gear:hover { background: rgba(255,255,255,.16); }
+    .gear svg { width: 22px; height: 22px; fill: var(--fg); opacity: .9; }
 
-    /* Progress: thin, darker remainder for contrast */
-    .progress{
-      width:100%; height:18px; border-radius:999px;
-      border:1px solid rgba(255,255,255,.18);
-      background:#606a78; /* darker grey remainder */
-      overflow:hidden
-    }
-    .bar{
-      height:100%; width:0%;
-      background:linear-gradient(90deg, rgba(255,255,255,.98), rgba(255,255,255,.45));
-      background-color:rgba(255,255,255,.9);
-    }
+    .settings { position: fixed; inset: 0; display: none; }
+    .settings.open { display: grid; }
+    .settings .scrim { position: absolute; inset: 0; background: rgba(0,0,0,.6); }
+    .settings .panel { position: relative; margin: auto; width: min(940px, 92%); max-height: 86%; overflow: auto; background: #0d0d0d; border: 1px solid #1a1a1a; border-radius: 18px; padding: 24px; box-shadow: 0 30px 80px rgba(0,0,0,.6); }
+    .settings h2 { margin: 0 0 .6rem 0; font-size: 22px; }
+    .settings p.note { color: var(--muted); margin-top: .2rem; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 18px 0; }
+    label { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); display: block; margin-bottom: 6px; }
+    input[type=text] { width: 100%; padding: 10px 12px; border-radius: 10px; background: #121212; color: var(--fg); border: 1px solid #2a2a2a; }
+    select { width: 100%; padding: 10px 12px; border-radius: 10px; background: #121212; color: var(--fg); border: 1px solid #2a2a2a; }
+    button { appearance: none; border: 0; background: var(--accent); color: #000; padding: 10px 14px; border-radius: 12px; font-weight: 700; cursor: pointer; }
+    button.secondary { background: #202020; color: var(--fg); border: 1px solid #2a2a2a; }
+    .hr { height: 1px; background: #1a1a1a; margin: 18px 0; }
 
-    /* Clamping as last resort */
-    .clamp{display:-webkit-box; -webkit-box-orient:vertical; overflow:hidden}
-    .clamp.title-2{-webkit-line-clamp:2}
-    .clamp.title-3{-webkit-line-clamp:3}
-    .clamp.artists-1{-webkit-line-clamp:1}
-    .clamp.artists-2{-webkit-line-clamp:2}
+    .net { position: fixed; left: 50%; transform: translateX(-50%); bottom: 14px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2); padding: 8px 12px; border-radius: 999px; font-size: 12px; display: none; }
+    .net.show { display: inline-flex; align-items: center; gap: 8px; }
+    .net .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--error); }
 
-    /* Gear + settings */
-    .gear{position:fixed; right:16px; bottom:16px; width:54px; height:54px; border-radius:16px; display:grid; place-items:center; border:1px solid rgba(255,255,255,.18);
-      background:rgba(255,255,255,.08); color:var(--fg); cursor:pointer; z-index:6; font-size:22px}
-    .gear.hidden{display:none}
+    .blackout { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity .25s ease; }
+    .blackout.show { opacity: 1; }
 
-    .drawer{position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:7; background:rgba(0,0,0,.72);}
-    .drawer.open{display:flex}
-
-    .sheet{
-      width:min(920px,96vw); max-height:92vh; overflow:auto;
-      background:#0b0b0b; border:1px solid rgba(255,255,255,.14);
-      border-radius:22px; padding:28px;
-      color:var(--fg); box-shadow:0 24px 80px rgba(0,0,0,.75);
-      font-size:18px;
-    }
-    .sheet h2{font-size:28px; margin:0 0 4px}
-    .sheet p.lead{margin:0 0 18px; color:#c0c7d2}
-
-    .row{display:grid; grid-template-columns:1fr; gap:8px; margin:16px 0}
-    .row label{opacity:.9; font-weight:600}
-    input{
-      width:100%; padding:1rem 1rem; border-radius:14px;
-      border:1px solid rgba(255,255,255,.18); background:#101318; color:var(--fg); font-size:18px
-    }
-    input:focus{outline:2px solid #3b82f6; outline-offset:2px}
-
-    .hint{color:#9aa6b6; font-size:14px; margin-top:6px}
-    .error{color:#ffb4b4; font-size:14px; display:none; margin-top:6px}
-
-    .btns{display:flex; flex-wrap:wrap; gap:12px; justify-content:flex-end; margin-top:16px}
-    .btn{appearance:none; border:1px solid rgba(255,255,255,.2); background:#171b23; color:var(--fg);
-      padding:0.9rem 1.2rem; border-radius:14px; font-weight:700; cursor:pointer; font-size:16px}
-    .btn.primary{background:var(--accent); border-color:transparent; color:#052d16}
-    .btn:disabled{opacity:.6; cursor:not-allowed}
-
-    /* Mobile adjustments */
-    @media (max-width: 1100px){
-      .panel{grid-template-columns:1fr; gap:20px; width:100vw; height:100vh; padding:0}
-      .title, .artists{text-align:center}
-    }
-    @media (max-width: 640px){
-      .sheet{width:100vw; height:100vh; max-height:100vh; border-radius:0; padding:24px}
-      .btns{justify-content:stretch}
-      .btn{flex:1 1 100%}
+    @media (max-width: 900px) {
+      .root { grid-template-columns: 1fr; grid-auto-rows: max-content; }
     }
   </style>
 </head>
 <body>
-  <div class="stage">
-
-    <div class="panel">
-      <div class="left">
-        <img id="art" class="art" alt="Album art" />
+  <div class="root" id="root">
+    <div class="art" id="art"><img id="artImg" alt="" /></div>
+    <div class="meta">
+      <div class="titles">
+        <h1 class="title" id="title">Paused</h1>
+        <p class="artist" id="artist">—</p>
       </div>
-      <div class="right">
-        <div class="title" id="title">Not playing</div>
-        <div class="artists" id="artists">—</div>
-        <div>
-          <div class="progress"><div class="bar" id="bar"></div></div>
+      <div>
+        <div class="bar"><div class="bar-fill" id="fill"></div></div>
+        <div class="footer">
+          <div class="account-pill" id="acctPill" title="Which account is shown">
+            <span class="account-dot" id="acctDot"></span>
+            <span id="acctLabel">No account</span>
+          </div>
+          <span id="timeText">0:00 / 0:00</span>
         </div>
-      </div>
-    </div>
-
-    <div class="gear" id="gear" title="Settings (press 's')">⚙︎</div>
-
-    <div class="drawer" id="drawer">
-      <div class="sheet">
-        <h2>Nowify Settings</h2>
-        <p class="lead">Enter your Spotify Client ID and confirm the Redirect URI.</p>
-
-        <div class="row">
-          <label for="clientId">Client ID</label>
-          <input id="clientId" placeholder="Spotify Client ID" inputmode="text" autocomplete="off" />
-          <div class="hint">From <em>Spotify Developer Dashboard → Your App → Client ID</em>.</div>
-          <div class="error" id="clientIdErr">Please enter your Client ID.</div>
-        </div>
-
-        <div class="row">
-          <label for="redirectUri">Redirect URI</label>
-          <input id="redirectUri" placeholder="https://USERNAME.github.io/REPO/" inputmode="url" />
-          <div class="hint">Must exactly match the Redirect URI you added in Spotify app settings.</div>
-          <div class="error" id="redirectErr">Please enter a valid Redirect URI (https://…).</div>
-        </div>
-
-        <div class="btns">
-          <button class="btn" id="copyUrlBtn" title="Use current page as Redirect URI">Use this page URL</button>
-          <button class="btn" id="clearBtn">Clear data</button>
-          <button class="btn" id="logoutBtn">Log out</button>
-          <button class="btn primary" id="loginBtn">Log in with Spotify</button>
-          <button class="btn" id="closeBtn">Close</button>
-        </div>
-
-        <p class="hint">Tip: Press <b>s</b> anytime to open this panel. Tokens are stored only in this browser.</p>
       </div>
     </div>
-
-    <div class="blackout" id="blackout" aria-hidden="true"></div>
-    <div class="neterr" id="neterr" aria-live="polite"><div class="bubble">Network issue — trying to reconnect…</div></div>
   </div>
 
-  <div class="toast" id="toast"></div>
+  <div class="gear" id="gear" title="Settings (press ‘s’)" aria-label="Settings">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.14,12.94a7.77,7.77,0,0,0,.06-1,7.77,7.77,0,0,0-.06-1l2.11-1.65a.5.5,0,0,0,.12-.64l-2-3.46a.5.5,0,0,0-.6-.22l-2.49,1a7.28,7.28,0,0,0-1.73-1L14.5,1.61a.5.5,0,0,0-.5-.41H10a.5.5,0,0,0-.5.41L9,4.97a7.28,7.28,0,0,0-1.73,1l-2.49-1a.5.5,0,0,0-.6.22l-2,3.46a.5.5,0,0,0,.12.64L3.86,10a7.77,7.77,0,0,0-.06,1,7.77,7.77,0,0,0,.06,1L1.75,13.65a.5.5,0,0,0-.12.64l2,3.46a.5.5,0,0,0,.6.22l2.49-1a7.28,7.28,0,0,0,1.73,1l.5,3.36a.5.5,0,0,0,.5.41h4a.5.5,0,0,0,.5-.41l.5-3.36a7.28,7.28,0,0,0,1.73-1l2.49,1a.5.5,0,0,0,.6-.22l2-3.46a.5.5,0,0,0-.12-.64ZM12,15.5A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z"/></svg>
+  </div>
+
+  <div class="settings" id="settings">
+    <div class="scrim" data-close></div>
+    <div class="panel">
+      <h2>Nowify — Dual Account</h2>
+      <p class="note">Press <kbd>s</kbd> to open/close this panel. Tokens are stored in <code>localStorage</code> on this origin only.</p>
+
+      <div class="row">
+        <div>
+          <label>Spotify Client ID</label>
+          <input type="text" id="clientId" placeholder="Paste your Spotify Client ID" />
+        </div>
+        <div>
+          <label>Redirect URI</label>
+          <input type="text" id="redirectUri" />
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="row">
+        <div>
+          <h2>Account A</h2>
+          <p class="note" id="aStatus">Not connected</p>
+          <div style="display:flex; gap:10px; flex-wrap: wrap;">
+            <button id="aLogin">Log in as A</button>
+            <button id="aLogout" class="secondary">Log out A</button>
+          </div>
+        </div>
+        <div>
+          <h2>Account B</h2>
+          <p class="note" id="bStatus">Not connected</p>
+          <div style="display:flex; gap:10px; flex-wrap: wrap;">
+            <button id="bLogin">Log in as B</button>
+            <button id="bLogout" class="secondary">Log out B</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Preference when both are playing</label>
+          <select id="prefer">
+            <option value="A">Prefer Account A</option>
+            <option value="B">Prefer Account B</option>
+          </select>
+        </div>
+        <div>
+          <label>Polling interval (ms)</label>
+          <input type="text" id="pollMs" />
+        </div>
+      </div>
+
+      <div style="display:flex; gap:10px; justify-content:flex-end; margin-top: 6px;">
+        <button id="save">Save</button>
+        <button id="close" class="secondary">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="net" id="net"><span class="dot"></span> Network issue — retrying…</div>
+  <div class="blackout" id="blackout"></div>
 
   <script>
-  // Utilities
-  const $ = s => document.querySelector(s);
-  const b64url = arr => btoa(String.fromCharCode(...new Uint8Array(arr))).replace(/\\+/g,"-").replace(/\\//g,"_").replace(/=+$/,"");
-  const randVer = () => { const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~"; const a = new Uint8Array(64); crypto.getRandomValues(a); return Array.from(a, b => chars[b % chars.length]).join(""); };
-  const toast=(m)=>{const t=$("#toast"); t.textContent=m; t.style.display="block"; setTimeout(()=>t.style.display="none",2600);};
+    // ===== Config & storage =====
+    const CFG_KEY = 'nowify_cfg_v2';
+    const DEFAULT_CFG = {
+      clientId: '',
+      redirectUri: location.origin + location.pathname,
+      accounts: {
+        A: { label: 'Account A', tokens: null, profile: null, lastAuth: 0 },
+        B: { label: 'Account B', tokens: null, profile: null, lastAuth: 0 },
+      },
+      preferred: 'A',
+      pollingMs: 2500,
+    };
 
-  const POLL_MS = 5000;
-
-  // Storage
-  const store={ get k(){return JSON.parse(localStorage.getItem("nowify_cfg")||"{}")},
-                set k(v){localStorage.setItem("nowify_cfg",JSON.stringify(v))},
-                set(a,b){const o=this.k;o[a]=b;this.k=o}, get(a){return this.k[a]}, clear(){localStorage.removeItem("nowify_cfg")} };
-
-  // OAuth (PKCE)
-  const SCOPES=[ "user-read-email","user-read-private","user-read-currently-playing","user-read-playback-state" ].join(" ");
-  async function beginLogin(){
-    const cid = $("#clientId").value.trim();
-    const rid = $("#redirectUri").value.trim() || (location.origin + location.pathname);
-    store.set("client_id", cid); store.set("redirect_uri", rid);
-
-    let ok = true;
-    $("#clientIdErr").style.display = cid ? "none" : "block";
-    try{ const u = new URL(rid); if(u.protocol !== "https:" && u.protocol !== "http:") ok=false; }catch{ ok=false; }
-    $("#redirectErr").style.display = ok ? "none" : "block";
-    if(!cid || !ok){ toast("Please fix the highlighted fields."); return; }
-
-    if(!("crypto" in window) || !("subtle" in crypto)){ toast("This browser doesn't support PKCE (WebCrypto)."); return; }
-
-    const loginBtn = $("#loginBtn"); loginBtn.disabled = true; const prev=loginBtn.textContent; loginBtn.textContent="Opening Spotify…";
-
-    const state = randVer(); const verifier = randVer();
-    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
-    const challenge=b64url(digest);
-    store.set("code_verifier",verifier); store.set("oauth_state",state);
-
-    const url=new URL("https://accounts.spotify.com/authorize");
-    url.searchParams.set("response_type","code");
-    url.searchParams.set("client_id",cid);
-    url.searchParams.set("scope",SCOPES);
-    url.searchParams.set("redirect_uri",rid);
-    url.searchParams.set("state",state);
-    url.searchParams.set("code_challenge_method","S256");
-    url.searchParams.set("code_challenge",challenge);
-    location.href=url.toString();
-    setTimeout(()=>{ try{ loginBtn.disabled=false; loginBtn.textContent=prev; }catch{} }, 4000);
-  }
-  async function exchangeCodeForToken(code){
-    const clientId=store.get("client_id"); const redirectUri=store.get("redirect_uri") || (location.origin + location.pathname);
-    const verifier=store.get("code_verifier");
-    const body=new URLSearchParams({client_id:clientId, grant_type:"authorization_code", code, redirect_uri:redirectUri, code_verifier:verifier});
-    const res=await fetch("https://accounts.spotify.com/api/token",{method:"POST", headers:{"Content-Type":"application/x-www-form-urlencoded"}, body});
-    if(!res.ok) throw new Error("Token exchange failed: "+res.status);
-    const data=await res.json(); persistTokens(data); return data;
-  }
-  async function refreshToken(){
-    const clientId=store.get("client_id"); const r=store.get("refresh_token"); if(!r) return;
-    const body=new URLSearchParams({client_id:clientId, grant_type:"refresh_token", refresh_token:r});
-    const res=await fetch("https://accounts.spotify.com/api/token",{method:"POST", headers:{"Content-Type":"application/x-www-form-urlencoded"}, body});
-    if(!res.ok) throw new Error("Refresh failed: "+res.status);
-    const data=await res.json(); persistTokens(data,true); return data;
-  }
-  function persistTokens(d, keep=false){
-    if(d.access_token) store.set("access_token", d.access_token);
-    if(d.expires_in) store.set("expires_at", Date.now() + (d.expires_in-30)*1000);
-    if(d.refresh_token) store.set("refresh_token", d.refresh_token);
-    else if(keep){/* keep old refresh token */}
-  }
-  function logout(){ store.set("access_token",null); store.set("refresh_token",null); store.set("expires_at",0); }
-
-  // API
-  async function api(path){
-    let at=store.get("access_token"); let exp=store.get("expires_at")||0;
-    if(!at) throw new Error("No access token");
-    if(Date.now()>exp){ try{ await refreshToken(); }catch(e){ console.error(e);} at=store.get("access_token"); }
-    const res=await fetch("https://api.spotify.com/v1"+path,{headers:{Authorization:`Bearer ${at}`}});
-    if(res.status===204) return null;
-    if(res.status===401){ await refreshToken(); return api(path); }
-    if(!res.ok) throw new Error("API "+path+" failed: "+res.status);
-    return await res.json();
-  }
-
-  // Render & overlays
-  const art=$("#art"), titleEl=$("#title"), artistsEl=$("#artists");
-  const bar=$("#bar");
-  const blackout=$("#blackout"), neterr=$("#neterr");
-  const setBlackout = on => blackout.style.display = on ? "block" : "none";
-  const showNetErr = on => neterr.style.display = on ? "grid" : "none";
-
-  // Smooth progress animation
-  let lastPosMs=null, lastDurMs=null, lastIsPlaying=false;
-  const animateProgress=(posMs, durMs, isPlaying, horizonMs=POLL_MS)=>{
-    if(!durMs || durMs<=0){ bar.style.transition="none"; bar.style.width="0%"; return; }
-    const startPct = Math.max(0, Math.min(100, (posMs/durMs)*100));
-    bar.style.transition = "none";
-    bar.style.width = startPct + "%";
-    void bar.offsetWidth;
-    if(isPlaying){
-      const dt = Math.min(horizonMs, Math.max(0, durMs - posMs));
-      const endPct = Math.max(0, Math.min(100, ((posMs + dt)/durMs)*100));
-      bar.style.transition = `width ${dt/1000}s linear`;
-      bar.style.width = endPct + "%";
+    let cfg = loadCfg();
+    function loadCfg(){
+      try { return { ...DEFAULT_CFG, ...(JSON.parse(localStorage.getItem(CFG_KEY))||{}) }; } catch { return { ...DEFAULT_CFG }; }
     }
-  };
+    function saveCfg(){ localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); }
 
-  function renderNothing(){
-    titleEl.textContent="Nothing playing";
-    artistsEl.textContent="—";
-    art.src="";
-    fitAll();
-    showNetErr(false);
-    setBlackout(true);
-    lastPosMs=null; lastDurMs=null; lastIsPlaying=false;
-    animateProgress(0, 0, false);
-  }
-  function renderPlayback(d){
-    if(!d || !d.item){ renderNothing(); return; }
-    const t=d.item;
-    titleEl.textContent=t.name||"—";
-    artistsEl.textContent=(t.artists||[]).map(a=>a.name).join(", ")||"—";
-    const img=(t.album&&t.album.images&&t.album.images[0]&&t.album.images[0].url)||"";
-    if(img){ art.src=img; }
-    const dur=t.duration_ms||0, pos=d.progress_ms||0;
-    lastDurMs=dur; lastPosMs=pos; lastIsPlaying=!!d.is_playing;
-    fitAll();
-    setBlackout(!d.is_playing);
-    showNetErr(false);
-    animateProgress(pos, dur, d.is_playing, POLL_MS);
-  }
+    // ===== UI refs =====
+    const artImg = document.getElementById('artImg');
+    const titleEl = document.getElementById('title');
+    const artistEl = document.getElementById('artist');
+    const fillEl = document.getElementById('fill');
+    const acctPill = document.getElementById('acctPill');
+    const acctLabel = document.getElementById('acctLabel');
+    const acctDot = document.getElementById('acctDot');
+    const timeText = document.getElementById('timeText');
+    const blackout = document.getElementById('blackout');
+    const net = document.getElementById('net');
 
-  // Text fitting: shrink first, then clamp
-  const lineHeightPx=(el, fs)=>{
-    const st=getComputedStyle(el);
-    let lh = parseFloat(st.lineHeight);
-    if(Number.isNaN(lh) || st.lineHeight === "normal") lh = 1.04 * fs;
-    return lh;
-  };
-  function fitElement(el, maxLines, minPx){
-    el.classList.remove("clamp","title-2","title-3","artists-1","artists-2");
-    el.style.fontSize = "";
-    let fs = parseFloat(getComputedStyle(el).fontSize) || 40;
-    const minSize = Math.max(minPx, 18);
-    for(let i=0;i<28;i++){
-      const lh = lineHeightPx(el, fs);
-      const lines = Math.ceil(el.scrollHeight / lh);
-      if(lines <= maxLines) break;
-      fs *= 0.92;
-      if(fs <= minSize){ fs = minSize; break; }
-      el.style.fontSize = fs + "px";
+    // Settings refs
+    const settings = document.getElementById('settings');
+    const clientId = document.getElementById('clientId');
+    const redirectUri = document.getElementById('redirectUri');
+    const aStatus = document.getElementById('aStatus');
+    const bStatus = document.getElementById('bStatus');
+    const aLogin = document.getElementById('aLogin');
+    const bLogin = document.getElementById('bLogin');
+    const aLogout = document.getElementById('aLogout');
+    const bLogout = document.getElementById('bLogout');
+    const prefer = document.getElementById('prefer');
+    const pollMs = document.getElementById('pollMs');
+    const saveBtn = document.getElementById('save');
+
+    // ===== OAuth (PKCE) helpers =====
+    const SPOTIFY_AUTH = 'https://accounts.spotify.com/authorize';
+    const SPOTIFY_TOKEN = 'https://accounts.spotify.com/api/token';
+    const SCOPES = 'user-read-currently-playing user-read-playback-state';
+
+    async function sha256(str){ const enc = new TextEncoder().encode(str); const buf = await crypto.subtle.digest('SHA-256', enc); return new Uint8Array(buf); }
+    function base64url(bytes){ let s = btoa(String.fromCharCode(...bytes)); return s.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+    function randString(len=64){ const ab = new Uint8Array(len); crypto.getRandomValues(ab); return base64url(ab).slice(0,len); }
+
+    async function beginLogin(which){
+      if(!cfg.clientId){ openSettings(); alert('Set your Spotify Client ID first.'); return; }
+      const verifier = randString(64);
+      const challenge = base64url(await sha256(verifier));
+      sessionStorage.setItem(`nowify_pkce_${which}`, verifier);
+      const state = `nowify|${which}|${Date.now()}`;
+      const url = new URL(SPOTIFY_AUTH);
+      url.search = new URLSearchParams({
+        response_type: 'code',
+        client_id: cfg.clientId,
+        redirect_uri: cfg.redirectUri,
+        code_challenge_method: 'S256',
+        code_challenge: challenge,
+        scope: SCOPES,
+        state,
+        show_dialog: 'true',
+      }).toString();
+      location.assign(url.toString());
     }
-    const lh2 = lineHeightPx(el, fs);
-    const lines2 = Math.ceil(el.scrollHeight / lh2);
-    if(lines2 > maxLines){
-      el.classList.add("clamp");
-      if(el.id === "title"){ el.classList.add(maxLines >=3 ? "title-3" : "title-2"); }
-      else{ el.classList.add(maxLines >=2 ? "artists-2" : "artists-1"); }
-    }
-  }
-  function fitAll(){
-    fitElement(titleEl, 3, 36);
-    fitElement(artistsEl, 2, 30);
-  }
-  window.addEventListener("resize", fitAll);
 
-  // Polling and error handling
-  let timer=null, lastETag=null, consecutiveErrors=0;
-  const ERROR_THRESHOLD = 3;
-  async function tick(){
-    try{
-      const headers={}; if(lastETag) headers["If-None-Match"]=lastETag;
-      let at=store.get("access_token"); if(!at){ showNetErr(false); setBlackout(false); return; }
-      const res=await fetch("https://api.spotify.com/v1/me/player/currently-playing",{headers:{Authorization:`Bearer ${at}`,...headers}});
-      if(res.status===401){ await refreshToken(); return; }
-      if(res.status===204){ consecutiveErrors=0; showNetErr(false); renderNothing(); return; }
-      if(res.status===304){
-        consecutiveErrors=0; showNetErr(false);
-        if(lastDurMs!=null && lastPosMs!=null && lastIsPlaying){
-          lastPosMs = Math.min(lastPosMs + POLL_MS, lastDurMs);
-          animateProgress(lastPosMs, lastDurMs, true, POLL_MS);
-        }
-        return;
-      }
-      if(!res.ok) throw new Error("Status "+res.status);
-      lastETag = res.headers.get("ETag") || lastETag;
-      const data=await res.json(); renderPlayback(data);
-      consecutiveErrors=0; showNetErr(false);
-    }catch(e){
-      consecutiveErrors++;
-      if(consecutiveErrors >= ERROR_THRESHOLD){ setBlackout(false); showNetErr(true); }
-      console.error(e);
-    }
-  }
-  function start(){ if(timer) clearInterval(timer); tick(); timer=setInterval(tick, POLL_MS); }
-  async function whoami(){ try{ await api("/me"); }catch{} }
+    async function completeLogin(){
+      const params = new URLSearchParams(location.search);
+      const code = params.get('code');
+      const state = params.get('state');
+      if(!code || !state || !state.startsWith('nowify|')) return false;
+      const parts = state.split('|');
+      const which = parts[1] === 'A' ? 'A' : 'B';
+      const verifier = sessionStorage.getItem(`nowify_pkce_${which}`);
+      if(!verifier){ console.warn('Missing PKCE verifier'); return false; }
 
-  // Settings Drawer hooks
-  const drawer=$("#drawer"), gear=$("#gear");
-  function openDrawer(){ drawer.classList.add("open"); setBlackout(false); showNetErr(false); }
-  function closeDrawer(){ drawer.classList.remove("open"); }
-  $("#loginBtn").onclick=beginLogin;
-  $("#logoutBtn").onclick=()=>{ logout(); renderNothing(); toast("Logged out"); openDrawer(); };
-  $("#closeBtn").onclick=closeDrawer;
-  $("#clearBtn").onclick=()=>{ store.clear(); toast("Cleared stored data"); location.reload(); };
-  $("#copyUrlBtn").onclick=()=>{ $("#redirectUri").value = location.origin + location.pathname; saveSettings(); toast("Copied current page as Redirect URI"); };
-
-  function saveSettings(){ store.set("client_id", $("#clientId").value.trim()); store.set("redirect_uri", $("#redirectUri").value.trim()); }
-  $("#clientId").addEventListener("input", saveSettings);
-  $("#redirectUri").addEventListener("input", saveSettings);
-  gear.onclick=openDrawer;
-  document.addEventListener("keydown",(e)=>{
-    if(e.key.toLowerCase()==="s") openDrawer();
-    if(e.key==="Enter" && $("#drawer").classList.contains("open")){ e.preventDefault(); beginLogin(); }
-  });
-
-  // Wake Lock
-  let wl=null;
-  async function lockScreen(){ try{ if("wakeLock" in navigator){ wl=await navigator.wakeLock.request("screen"); wl.addEventListener("release",()=>{}); } }catch(e){} }
-  document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible" && wl && wl.released){ lockScreen(); } });
-
-  // Init
-  (async function init(){
-    $("#clientId").value = store.get("client_id") || "";
-    $("#redirectUri").value = store.get("redirect_uri") || (location.origin + location.pathname);
-    const params=new URLSearchParams(location.search);
-    if(params.has("code")){
       try{
-        const code=params.get("code"); const state=params.get("state");
-        if(state !== store.get("oauth_state")) throw new Error("State mismatch");
-        await exchangeCodeForToken(code);
-        history.replaceState({}, "", store.get("redirect_uri") || (location.origin + location.pathname));
-        toast("Logged in");
-      }catch(e){ console.error(e); toast("Login failed. Open settings with 's' and check."); }
+        const body = new URLSearchParams({
+          client_id: cfg.clientId,
+          grant_type: 'authorization_code',
+          code, redirect_uri: cfg.redirectUri,
+          code_verifier: verifier,
+        });
+        const r = await fetch(SPOTIFY_TOKEN, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+        if(!r.ok){ throw new Error('Token exchange failed'); }
+        const tok = await r.json();
+        const now = Date.now();
+        cfg.accounts[which].tokens = {
+          access_token: tok.access_token,
+          refresh_token: tok.refresh_token,
+          expires_at: now + (tok.expires_in*1000 - 15_000),
+        };
+        cfg.accounts[which].lastAuth = now;
+        saveCfg();
+        await loadProfile(which);
+      }catch(err){ console.error(err); alert('Login failed: '+err.message); }
+      finally{
+        // Clean URL
+        history.replaceState({}, '', cfg.redirectUri);
+      }
+      return true;
     }
-    if(store.get("access_token")){
-      await whoami();
-      start();
-      lockScreen();
-      gear.classList.add("hidden");
-      fitAll();
-    }else{
-      setBlackout(false); showNetErr(false);
-      openDrawer();
+
+    async function refreshToken(which){
+      const t = cfg.accounts[which].tokens; if(!t || !t.refresh_token) return false;
+      try{
+        const body = new URLSearchParams({
+          client_id: cfg.clientId,
+          grant_type: 'refresh_token',
+          refresh_token: t.refresh_token,
+        });
+        const r = await fetch(SPOTIFY_TOKEN, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+        if(!r.ok){ throw new Error('Refresh failed'); }
+        const tok = await r.json();
+        t.access_token = tok.access_token;
+        if(tok.refresh_token) t.refresh_token = tok.refresh_token; // sometimes new one provided
+        t.expires_at = Date.now() + (tok.expires_in*1000 - 15_000);
+        saveCfg();
+        return true;
+      }catch(err){ console.warn('Refresh failed', which, err); return false; }
     }
-  })();
+
+    async function withToken(which, fn){
+      const acct = cfg.accounts[which];
+      if(!acct.tokens) throw new Error('Not logged in');
+      if(Date.now() > acct.tokens.expires_at){ await refreshToken(which); }
+      return await fn(acct.tokens.access_token);
+    }
+
+    // ===== API helpers =====
+    async function apiGet(token, url){
+      const r = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+      return r.ok ? r.json() : Promise.reject(r);
+    }
+
+    async function loadProfile(which){
+      try{
+        const me = await withToken(which, (t)=>apiGet(t, 'https://api.spotify.com/v1/me'));
+        cfg.accounts[which].profile = { id: me.id, name: me.display_name || me.id };
+        saveCfg();
+        updateSettingsUI();
+      }catch(err){ console.warn('Profile load failed', which, err); }
+    }
+
+    async function getPlayback(which){
+      try{
+        const data = await withToken(which, (t)=>apiGet(t, 'https://api.spotify.com/v1/me/player/currently-playing'));
+        if(!data || !data.item){ return { which, ok:true, isPlaying:false, data:null }; }
+        const isPlaying = !!data.is_playing && data.currently_playing_type === 'track';
+        return { which, ok:true, isPlaying, data };
+      }catch(err){
+        if(err && err.status === 204) return { which, ok:true, isPlaying:false, data:null }; // no content
+        if(err && err.status === 401){ const ok = await refreshToken(which); if(ok) return getPlayback(which); }
+        console.warn('Playback failed', which, err);
+        return { which, ok:false, isPlaying:false, data:null };
+      }
+    }
+
+    // ===== Rendering =====
+    let lastShown = null; // 'A' | 'B' | null
+    let lastData = null;
+    let netErrors = 0;
+    let rafTicker = null;
+
+    function chooseToShow(aRes, bRes){
+      const aPlaying = aRes && aRes.ok && aRes.isPlaying;
+      const bPlaying = bRes && bRes.ok && bRes.isPlaying;
+      if(aPlaying && bPlaying){ return cfg.preferred; }
+      if(aPlaying) return 'A';
+      if(bPlaying) return 'B';
+      return null;
+    }
+
+    function msToClock(ms){ if(!ms && ms!==0) return '0:00'; const s=Math.floor(ms/1000), m=Math.floor(s/60), r=(s%60).toString().padStart(2,'0'); return `${m}:${r}`; }
+
+    function renderNothing(){
+      titleEl.textContent = 'Paused';
+      artistEl.textContent = '—';
+      artImg.removeAttribute('src');
+      fillEl.style.width = '0%';
+      timeText.textContent = '0:00 / 0:00';
+      acctLabel.textContent = 'No account';
+      blackout.classList.add('show');
+    }
+
+    function renderPlayback(which, payload){
+      blackout.classList.remove('show');
+      const item = payload.item; // track
+      const artists = (item && item.artists ? item.artists.map(a=>a.name).join(', ') : '') || 'Unknown artist';
+      titleEl.textContent = item?.name || 'Unknown track';
+      artistEl.textContent = artists;
+      const art = (item?.album?.images||[]).sort((a,b)=>b.width-a.width)[0]?.url;
+      if(art) artImg.src = art; else artImg.removeAttribute('src');
+
+      // Progress
+      const dur = item?.duration_ms || 0;
+      const prog = payload.progress_ms || 0;
+      timeText.textContent = `${msToClock(prog)} / ${msToClock(dur)}`;
+      fillEl.style.width = dur ? `${Math.min(100, (prog/dur)*100).toFixed(2)}%` : '0%';
+
+      // Account pill
+      const prof = cfg.accounts[which].profile; 
+      acctLabel.textContent = prof ? `${prof.name} (${which})` : (which === 'A' ? 'Account A' : 'Account B');
+      acctDot.style.background = which === 'A' ? 'var(--accent)' : '#4d88ff';
+
+      lastShown = which; lastData = payload;
+    }
+
+    function tickProgress(){
+      if(!lastData) return;
+      const dur = lastData.item?.duration_ms || 0; if(!dur) return;
+      const prev = parseFloat(fillEl.style.width) || 0;
+      const step = (100 / (dur/1000)) * (1/10); // 10fps estimate
+      const next = Math.min(100, prev + step);
+      fillEl.style.width = next + '%';
+      // rough text increment
+      const cur = (parseFloat(lastData.progress_ms)||0) + (step/100)*dur; lastData.progress_ms = cur;
+      timeText.textContent = `${msToClock(cur)} / ${msToClock(dur)}`;
+      rafTicker = setTimeout(tickProgress, 100);
+    }
+
+    function cancelTicker(){ if(rafTicker){ clearTimeout(rafTicker); rafTicker = null; } }
+
+    async function poll(){
+      const hasA = !!cfg.accounts.A.tokens;
+      const hasB = !!cfg.accounts.B.tokens;
+      if(!hasA && !hasB){ renderNothing(); return; }
+
+      try{
+        const [aRes, bRes] = await Promise.all([
+          hasA ? getPlayback('A') : Promise.resolve(null),
+          hasB ? getPlayback('B') : Promise.resolve(null),
+        ]);
+        netErrors = 0; net.classList.remove('show');
+        const show = chooseToShow(aRes, bRes);
+        cancelTicker();
+        if(!show){ renderNothing(); return; }
+        const payload = show === 'A' ? aRes.data : bRes.data;
+        renderPlayback(show, payload);
+        tickProgress();
+      }catch(err){
+        console.warn('Poll error', err);
+        netErrors++; if(netErrors > 5) net.classList.add('show');
+      }
+    }
+
+    // ===== Settings UI =====
+    function openSettings(){ settings.classList.add('open'); fillSettings(); }
+    function closeSettings(){ settings.classList.remove('open'); }
+
+    function fillSettings(){
+      clientId.value = cfg.clientId || '';
+      redirectUri.value = cfg.redirectUri || (location.origin+location.pathname);
+      prefer.value = cfg.preferred || 'A';
+      pollMs.value = String(cfg.pollingMs || 2500);
+      updateSettingsUI();
+    }
+
+    function updateSettingsUI(){
+      const pa = cfg.accounts.A.profile; const pb = cfg.accounts.B.profile;
+      aStatus.textContent = pa ? `Connected as ${pa.name}` : 'Not connected';
+      bStatus.textContent = pb ? `Connected as ${pb.name}` : 'Not connected';
+    }
+
+    document.getElementById('save').addEventListener('click', ()=>{
+      cfg.clientId = clientId.value.trim();
+      cfg.redirectUri = redirectUri.value.trim() || (location.origin+location.pathname);
+      cfg.preferred = (prefer.value === 'B') ? 'B' : 'A';
+      const n = parseInt(pollMs.value, 10); if(!Number.isNaN(n) && n>500) cfg.pollingMs = n;
+      saveCfg();
+      closeSettings();
+    });
+
+    document.getElementById('close').addEventListener('click', closeSettings);
+    document.getElementById('gear').addEventListener('click', openSettings);
+    settings.addEventListener('click', (e)=>{ if(e.target.hasAttribute('data-close')) closeSettings(); });
+
+    aLogin.addEventListener('click', ()=>beginLogin('A'));
+    bLogin.addEventListener('click', ()=>beginLogin('B'));
+    aLogout.addEventListener('click', ()=>{ cfg.accounts.A = { ...DEFAULT_CFG.accounts.A }; saveCfg(); updateSettingsUI(); });
+    bLogout.addEventListener('click', ()=>{ cfg.accounts.B = { ...DEFAULT_CFG.accounts.B }; saveCfg(); updateSettingsUI(); });
+
+    // Keyboard shortcut
+    document.addEventListener('keydown', (e)=>{ if(e.key.toLowerCase() === 's') settings.classList.toggle('open'); });
+
+    // ===== Boot =====
+    (async function boot(){
+      // Handle OAuth return
+      await completeLogin();
+      // Try to enrich profiles if tokens exist but profile missing
+      if(cfg.accounts.A.tokens && !cfg.accounts.A.profile) await loadProfile('A');
+      if(cfg.accounts.B.tokens && !cfg.accounts.B.profile) await loadProfile('B');
+      updateSettingsUI();
+
+      // Initial paint
+      renderNothing(); fillSettings();
+
+      // Start polling loop
+      async function loop(){ await poll(); setTimeout(loop, cfg.pollingMs); }
+      loop();
+    })();
   </script>
 </body>
 </html>
