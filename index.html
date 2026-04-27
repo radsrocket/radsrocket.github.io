@@ -13,7 +13,8 @@
       --gap: 3.2vw; /* keep center gap */
     }
     *{box-sizing:border-box}
-    html,body{height:100%;margin:0;background:#000;color:var(--fg);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial,sans-serif;overflow:hidden;cursor:none}
+    html,body{height:100%;margin:0;background:#000;color:var(--fg);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial,sans-serif;overflow:hidden}
+    html.cursor-hidden, html.cursor-hidden *{cursor:none!important}
     
     /* Stage fills screen; no extra margins */
     .stage{position:fixed;inset:0;display:block}
@@ -207,6 +208,17 @@
   const b64url = arr => btoa(String.fromCharCode(...new Uint8Array(arr))).replace(/\\+/g,"-").replace(/\\//g,"_").replace(/=+$/,"");
   const randVer = () => { const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~"; const a = new Uint8Array(64); crypto.getRandomValues(a); return Array.from(a, b => chars[b % chars.length]).join(""); };
   const toast=(m)=>{const t=$("#toast"); t.textContent=m; t.style.display="block"; setTimeout(()=>t.style.display="none",2600);};
+  const CURSOR_HIDE_MS = 1500;
+  let cursorTimer = null;
+  function showCursorBriefly(){
+    document.documentElement.classList.remove("cursor-hidden");
+    if(cursorTimer) clearTimeout(cursorTimer);
+    cursorTimer = setTimeout(()=>document.documentElement.classList.add("cursor-hidden"), CURSOR_HIDE_MS);
+  }
+  ["mousemove","mousedown","mouseup","wheel","touchstart"].forEach(eventName=>{
+    window.addEventListener(eventName, showCursorBriefly, { passive:true });
+  });
+  showCursorBriefly();
 
   const POLL_MS = 5000;
 
