@@ -68,7 +68,7 @@ Add:
 - **“Invalid redirect URI”** → the URL in Spotify settings must match your Pages URL exactly (including trailing slash).
 - **Stuck after login** → open **Settings (s)** and confirm Client ID + Redirect URI; try a hard refresh.
 - **Looks cached** → hard reload (Ctrl/Cmd+Shift+R) or clear site data.
-- **Blank screen** → you might be paused or nothing is playing; press **s** to bring up Settings.
+- **Blank screen** → Blackout mode may be active while nothing is playing; press **s** or click the gear to bring up Settings.
 - **Network notice won’t go away** → check connectivity; it clears on the next successful poll.
 
 ## Development

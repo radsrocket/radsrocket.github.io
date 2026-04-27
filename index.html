@@ -14,6 +14,7 @@
       --progress-h: 18px;
       --gutter: 4vmin;
     }
+    *, *::before, *::after { box-sizing: border-box; }
     html, body { height: 100%; margin: 0; background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; }
     .root { display: grid; grid-template-columns: minmax(280px, 40%) 1fr; gap: var(--gutter); height: 100%; align-items: center; padding: var(--gutter); box-sizing: border-box; }
     .art { width: 100%; aspect-ratio: 1/1; background: #111; border-radius: 2vmin; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,.6); }
@@ -31,11 +32,11 @@
     .account-pill { display: inline-flex; align-items: center; gap: .5rem; padding: .3rem .6rem; border-radius: 999px; background: rgba(255,255,255,.1); }
     .account-dot { width: .6rem; height: .6rem; border-radius: 999px; background: var(--accent); }
 
-    .gear { position: fixed; top: .9rem; right: .9rem; width: 36px; height: 36px; border-radius: 999px; display: grid; place-items: center; cursor: pointer; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.18); backdrop-filter: blur(6px); }
+    .gear { position: fixed; z-index: 30; top: .9rem; right: .9rem; width: 36px; height: 36px; border-radius: 999px; display: grid; place-items: center; cursor: pointer; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.18); backdrop-filter: blur(6px); }
     .gear:hover { background: rgba(255,255,255,.16); }
     .gear svg { width: 22px; height: 22px; fill: var(--fg); opacity: .9; }
 
-    .settings { position: fixed; inset: 0; display: none; }
+    .settings { position: fixed; z-index: 40; inset: 0; display: none; }
     .settings.open { display: grid; }
     .settings .scrim { position: absolute; inset: 0; background: rgba(0,0,0,.6); }
     .settings .panel { position: relative; margin: auto; width: min(940px, 92%); max-height: 86%; overflow: auto; background: #0d0d0d; border: 1px solid #1a1a1a; border-radius: 18px; padding: 24px; box-shadow: 0 30px 80px rgba(0,0,0,.6); }
@@ -49,11 +50,11 @@
     button.secondary { background: #202020; color: var(--fg); border: 1px solid #2a2a2a; }
     .hr { height: 1px; background: #1a1a1a; margin: 18px 0; }
 
-    .net { position: fixed; left: 50%; transform: translateX(-50%); bottom: 14px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2); padding: 8px 12px; border-radius: 999px; font-size: 12px; display: none; }
+    .net { position: fixed; z-index: 35; left: 50%; transform: translateX(-50%); bottom: 14px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2); padding: 8px 12px; border-radius: 999px; font-size: 12px; display: none; }
     .net.show { display: inline-flex; align-items: center; gap: 8px; }
     .net .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--error); }
 
-    .blackout { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity .25s ease; }
+    .blackout { position: fixed; z-index: 20; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity .25s ease; }
     .blackout.show { opacity: 1; }
 
     @media (max-width: 900px) {
